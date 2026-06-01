@@ -273,6 +273,24 @@
         </div>
         <div class="form-row">
           <div class="field-group">
+            <label for="pub-operation">Tipo de operación</label>
+            <select id="pub-operation" required>
+              <option value="SALE">Venta</option>
+              <option value="RENT">Alquiler</option>
+              <option value="TEMP">Temporario</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label for="pub-pet-policy">Mascotas</label>
+            <select id="pub-pet-policy">
+              <option value="NOT_ALLOWED">No acepta</option>
+              <option value="ALLOWED">Acepta mascotas</option>
+              <option value="SMALL_ONLY">Solo chicas/medianas</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field-group">
             <label for="pub-price">Precio</label>
             <input type="number" id="pub-price" placeholder="150000" required />
           </div>

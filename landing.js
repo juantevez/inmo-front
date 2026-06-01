@@ -34,6 +34,7 @@ async function loadProperties() {
   const type     = document.getElementById('filter-type').value;
   const minPrice = document.getElementById('search-min').value;
   const maxPrice = document.getElementById('search-max').value;
+  const petsOnly = document.getElementById('filter-pets').checked;
 
   const params = new URLSearchParams({ limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE });
   if (currentOp)  params.set('operation', currentOp);
@@ -41,6 +42,7 @@ async function loadProperties() {
   if (minPrice)   params.set('min_price', minPrice);
   if (maxPrice)   params.set('max_price', maxPrice);
   if (zone)       params.set('zone', zone);
+  if (petsOnly)   params.set('pets', 'ALLOWED');
 
   try {
     const res  = await fetch(`${API_CATALOG}/api/v1/properties?${params}`);
@@ -83,18 +85,23 @@ function renderProperties(props) {
 }
 
 function propCard(p) {
-  const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
-  const price    = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
-  const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
-  const opLabel  = { SALE: 'Venta', RENT: 'Alquiler', TEMP: 'Temporario' };
-  const op       = opLabel[p.operation] || '';
-  const address  = escHtml(p.address || p.location?.address || 'Dirección no disponible');
+  const rawPrice  = typeof p.price === 'object' ? p.price?.amount : p.price;
+  const price     = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
+  const currency  = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+  const opLabel   = { SALE: 'Venta', RENT: 'Alquiler', TEMP: 'Temporario' };
+  const op        = opLabel[p.operation_type] || '';
+  const address   = escHtml(p.address || p.location?.address || 'Dirección no disponible');
+  const petPolicy = p.pet_policy || 'NOT_ALLOWED';
+  const petBadge  = petPolicy !== 'NOT_ALLOWED'
+    ? `<span class="pet-badge" title="${petPolicy === 'SMALL_ONLY' ? 'Solo mascotas chicas/medianas' : 'Acepta mascotas'}">🐾</span>`
+    : '';
 
   return `
     <article class="prop-card" onclick='openDetail(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
       <div class="prop-img">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".2" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         ${op ? `<span class="op-badge">${op}</span>` : ''}
+        ${petBadge}
       </div>
       <div class="prop-body">
         <p class="prop-title">${escHtml(p.title || 'Sin título')}</p>
@@ -122,10 +129,19 @@ function openDetail(p) {
   const price     = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
   const currency  = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
   const opLabel   = { SALE: 'En venta', RENT: 'En alquiler', TEMP: 'Temporario' };
+  const petLabel  = { ALLOWED: 'Acepta mascotas 🐾', SMALL_ONLY: 'Solo mascotas chicas/medianas 🐾', NOT_ALLOWED: 'No acepta mascotas' };
   const address   = escHtml(p.address || p.location?.address || '—');
+  const opType    = p.operation_type || '';
+  const petPolicy = p.pet_policy || 'NOT_ALLOWED';
+
+  const petNote = (opType === 'TEMP' && petPolicy !== 'NOT_ALLOWED')
+    ? `<div class="detail-pet-note">🐾 Esta propiedad acepta mascotas en alquiler temporario. Puede aplicarse un cargo adicional de limpieza o depósito en garantía.</div>`
+    : (petPolicy !== 'NOT_ALLOWED'
+        ? `<div class="detail-pet-chip">${petLabel[petPolicy]}</div>`
+        : '');
 
   document.getElementById('detail-info').innerHTML = `
-    ${p.operation ? `<div class="detail-op-badge">${opLabel[p.operation] || p.operation}</div>` : ''}
+    ${opType ? `<div class="detail-op-badge">${opLabel[opType] || opType}</div>` : ''}
     <h2 class="detail-title">${escHtml(p.title || 'Sin título')}</h2>
     <p class="detail-address">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -136,6 +152,7 @@ function openDetail(p) {
       <span class="detail-price-currency">${currency}</span>
     </div>
     ${p.description ? `<p class="detail-desc">${escHtml(p.description)}</p>` : ''}
+    ${petNote}
   `;
 
   document.getElementById('modal-detail').classList.add('open');

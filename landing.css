@@ -701,6 +701,90 @@ body {
 
 .auth-prompt-skip:hover { color: var(--ink-40); }
 
+/* ── ADVANCED FILTERS ── */
+.advanced-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pet-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pet-toggle input { display: none; }
+
+.pet-toggle-track {
+  width: 36px;
+  height: 20px;
+  background: var(--sand-200);
+  border-radius: 99px;
+  position: relative;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.pet-toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--white);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition);
+}
+
+.pet-toggle input:checked ~ .pet-toggle-track { background: var(--gold); }
+.pet-toggle input:checked ~ .pet-toggle-track .pet-toggle-thumb { transform: translateX(16px); }
+
+.pet-toggle-text {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13.5px;
+  color: var(--ink-70);
+  font-weight: 500;
+}
+
+/* ── PET BADGE en card ── */
+.pet-badge {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.15));
+}
+
+/* ── PET INFO en detalle ── */
+.detail-pet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--success);
+  background: #d1fae5;
+  padding: 4px 10px;
+  border-radius: 99px;
+}
+
+.detail-pet-note {
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: #92400e;
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  line-height: 1.5;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .nav-links { display: none; }

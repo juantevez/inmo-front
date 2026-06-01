@@ -204,16 +204,19 @@ function renderProperties(props) {
 
 function propCard(p) {
   const stateLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservada', CLOSED: 'Alquilada', UNDER_REPAIR: 'En reparación', RENTED: 'Alquilada' };
-  const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
-  const price    = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
-  const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
-  const shortId  = (p.id || '').slice(0, 8);
+  const opLabel   = { SALE: 'Venta', RENT: 'Alquiler', TEMP: 'Temporario' };
+  const rawPrice  = typeof p.price === 'object' ? p.price?.amount : p.price;
+  const price     = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
+  const currency  = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+  const shortId   = (p.id || '').slice(0, 8);
+  const opType    = p.operation_type || 'SALE';
 
   return `
     <div class="prop-card" onclick="openDetail(${JSON.stringify(p).replace(/"/g, '&quot;')})">
       <div class="prop-card-img">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <span class="prop-state-badge state-${p.state || 'AVAILABLE'}">${stateLabel[p.state] || p.state || 'Disponible'}</span>
+        <span class="prop-op-badge op-${opType}">${opLabel[opType] || opType}</span>
       </div>
       <div class="prop-card-body">
         <p class="prop-card-title">${escHtml(p.title || 'Sin título')}</p>
@@ -310,13 +313,15 @@ async function submitProperty(e) {
   const id = 'prop-' + Date.now();
   const body = {
     id,
-    title:       document.getElementById('pub-title').value.trim(),
-    description: document.getElementById('pub-desc').value.trim(),
-    price:       parseFloat(document.getElementById('pub-price').value),
-    currency:    document.getElementById('pub-currency').value,
-    address:     document.getElementById('pub-address').value.trim(),
-    latitude:    parseFloat(document.getElementById('pub-lat').value) || -34.6037,
-    longitude:   parseFloat(document.getElementById('pub-lng').value) || -58.3816,
+    title:          document.getElementById('pub-title').value.trim(),
+    description:    document.getElementById('pub-desc').value.trim(),
+    operation_type: document.getElementById('pub-operation').value,
+    pet_policy:     document.getElementById('pub-pet-policy').value,
+    price:          parseFloat(document.getElementById('pub-price').value),
+    currency:       document.getElementById('pub-currency').value,
+    address:        document.getElementById('pub-address').value.trim(),
+    latitude:       parseFloat(document.getElementById('pub-lat').value) || -34.6037,
+    longitude:      parseFloat(document.getElementById('pub-lng').value) || -58.3816,
   };
 
   try {

@@ -473,6 +473,20 @@ body {
 .state-UNDER_REPAIR { background: var(--danger-bg); color: var(--danger); }
 .state-RENTED     { background: var(--sand-100); color: var(--ink-40); }
 
+.prop-op-badge {
+  position: absolute;
+  top: 10px; left: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.op-SALE { background: #dbeafe; color: #1d4ed8; }
+.op-RENT { background: #fef9c3; color: #92400e; }
+.op-TEMP { background: #f3e8ff; color: #6b21a8; }
+
 .prop-card-body { padding: 14px 16px; }
 
 .prop-card-title {
