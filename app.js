@@ -18,21 +18,28 @@ let catalogPage   = 0;
 const PAGE_SIZE   = 12;
 let debounceTimer = null;
 
+/* ── Reservas: polling de pendientes para badge en sidebar ── */
+let _resBadgeTimer = null;
+
 /* ── Role definitions ── */
 const ROLES = {
   agente: {
     nav: [
-      { id: 'catalog',     label: 'Catálogo',      icon: iconHome },
-      { id: 'crm',         label: 'CRM / Leads',   icon: iconUsers },
-      { id: 'contracts',   label: 'Contratos',      icon: iconFile },
-      { id: 'maintenance', label: 'Mantenimiento',  icon: iconTool },
+      { id: 'catalog',      label: 'Catálogo',        icon: iconHome },
+      { id: 'crm',          label: 'CRM / Leads',     icon: iconUsers },
+      { id: 'contracts',    label: 'Contratos',        icon: iconFile },
+      { id: 'maintenance',  label: 'Mantenimiento',    icon: iconTool },
+      /* ── NUEVO: enlace externo al panel de reservas ── */
+      { id: 'reservations', label: 'Mis reservas',     icon: iconCalendar, href: 'reservations.html', badge: 'res' },
     ]
   },
   propietario: {
     nav: [
-      { id: 'catalog',   label: 'Mis propiedades', icon: iconHome },
-      { id: 'contracts', label: 'Contratos',        icon: iconFile },
-      { id: 'finances',  label: 'Liquidaciones',    icon: iconMoney },
+      { id: 'catalog',      label: 'Mis propiedades', icon: iconHome },
+      { id: 'contracts',    label: 'Contratos',        icon: iconFile },
+      { id: 'finances',     label: 'Liquidaciones',    icon: iconMoney },
+      /* ── NUEVO: enlace externo al panel de reservas ── */
+      { id: 'reservations', label: 'Mis reservas',     icon: iconCalendar, href: 'reservations.html', badge: 'res' },
     ]
   },
   buscador: {
@@ -55,23 +62,26 @@ const ROLES = {
   },
   admin: {
     nav: [
-      { id: 'catalog',     label: 'Catálogo',        icon: iconHome },
-      { id: 'crm',         label: 'CRM',             icon: iconUsers },
-      { id: 'contracts',   label: 'Contratos',        icon: iconFile },
-      { id: 'finances',    label: 'Finanzas',         icon: iconMoney },
-      { id: 'maintenance', label: 'Mantenimiento',    icon: iconTool },
-      { id: 'admin',       label: 'Administración',   icon: iconShield, badge: 'admin' },
+      { id: 'catalog',      label: 'Catálogo',        icon: iconHome },
+      { id: 'crm',          label: 'CRM',             icon: iconUsers },
+      { id: 'contracts',    label: 'Contratos',        icon: iconFile },
+      { id: 'finances',     label: 'Finanzas',         icon: iconMoney },
+      { id: 'maintenance',  label: 'Mantenimiento',    icon: iconTool },
+      { id: 'reservations', label: 'Reservas',         icon: iconCalendar, href: 'reservations.html', badge: 'res' },
+      { id: 'admin',        label: 'Administración',   icon: iconShield, badge: 'admin' },
     ]
   },
 };
 
 /* ── Icons ── */
-function iconHome()    { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`; }
-function iconUsers()   { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`; }
-function iconFile()    { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`; }
-function iconMoney()   { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`; }
-function iconTool()    { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`; }
-function iconShield()  { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`; }
+function iconHome()     { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`; }
+function iconUsers()    { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`; }
+function iconFile()     { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`; }
+function iconMoney()    { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`; }
+function iconTool()     { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`; }
+function iconShield()   { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`; }
+/* ── NUEVO ── */
+function iconCalendar() { return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`; }
 
 /* ── VIEW titles ── */
 const VIEW_TITLES = {
@@ -90,22 +100,55 @@ function switchRole(role, btn) {
   btn.classList.add('active');
   buildNav();
   const firstView = ROLES[role].nav[0].id;
+
+  // Si el primer item es externo (href), no hacer showView
+  const firstItem = ROLES[role].nav[0];
+  if (firstItem.href) {
+    window.location.href = firstItem.href;
+    return;
+  }
+
   showView(firstView);
+
+  // Activar/desactivar polling de reservas según rol
+  manageBadgePolling(role);
 }
 
 function buildNav() {
-  const nav = document.getElementById('sidebar-nav');
+  const nav   = document.getElementById('sidebar-nav');
   const items = ROLES[currentRole].nav;
-  nav.innerHTML = items.map(item => `
-    <button
-      class="nav-item ${item.id === currentView ? 'active' : ''}"
-      onclick="showView('${item.id}')"
-    >
-      ${item.icon()}
-      ${item.label}
-      ${item.badge ? `<span class="nav-badge">${item.badge}</span>` : ''}
-    </button>
-  `).join('');
+
+  nav.innerHTML = items.map(item => {
+    // Item con href → <a> link externo
+    if (item.href) {
+      const badgeHtml = item.badge === 'res'
+        ? `<span class="nav-badge nav-badge-res" id="nav-badge-res" style="display:none;
+            margin-left:auto;background:#C0392B;color:#fff;font-size:10px;font-weight:600;
+            min-width:17px;height:17px;align-items:center;justify-content:center;
+            border-radius:99px;padding:0 4px;"></span>`
+        : '';
+      return `
+        <a class="nav-item" href="${item.href}" style="text-decoration:none">
+          ${item.icon()}
+          ${item.label}
+          ${badgeHtml}
+        </a>`;
+    }
+
+    // Item interno → <button>
+    const badgeHtml = item.badge === 'admin'
+      ? `<span class="nav-badge">${item.badge}</span>`
+      : '';
+    return `
+      <button
+        class="nav-item ${item.id === currentView ? 'active' : ''}"
+        onclick="showView('${item.id}')"
+      >
+        ${item.icon()}
+        ${item.label}
+        ${badgeHtml}
+      </button>`;
+  }).join('');
 }
 
 function showView(viewId) {
@@ -126,6 +169,48 @@ function showView(viewId) {
 /* ── Sidebar toggle (mobile) ── */
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
+}
+
+/* ═══════════════════════════════════════
+   BADGE DE RESERVAS PENDIENTES (polling)
+═══════════════════════════════════════ */
+const BADGE_POLL_MS = 30_000;
+
+function manageBadgePolling(role) {
+  clearInterval(_resBadgeTimer);
+  const rolesConReservas = ['propietario', 'agente', 'admin'];
+  if (rolesConReservas.includes(role)) {
+    fetchPendingCount();
+    _resBadgeTimer = setInterval(fetchPendingCount, BADGE_POLL_MS);
+  }
+}
+
+async function fetchPendingCount() {
+  try {
+    const res = await fetch(`${GATEWAY}/api/v1/reservations/owner`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.reservations || data.items || data.data || []);
+    const pending = list.filter(r => r.status === 'PENDING_APPROVAL').length;
+    updateResBadge(pending);
+  } catch (_) {
+    /* silencioso — el badge no es crítico */
+  }
+}
+
+function updateResBadge(count) {
+  // El badge puede estar en el nav recién construido
+  const badge = document.getElementById('nav-badge-res');
+  if (!badge) return;
+
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 /* ═══════════════════════════════════════
@@ -259,7 +344,6 @@ async function openDetail(p) {
   const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
   const isTemp   = (p.operation_type || p.operationType) === 'TEMP';
 
-  // Sección amenities
   let amenitiesHtml = '';
   const amenities = p.temp_config?.amenities || p.amenities || [];
   if (amenities.length > 0) {
@@ -272,12 +356,11 @@ async function openDetail(p) {
       ).join('') + `</div></div>`;
   }
 
-  // Sección precio nocturno (TEMP)
   let tempPriceHtml = '';
   const tc = p.temp_config || p;
   if (isTemp && (tc.night_price || tc.nightPrice)) {
-    const np = tc.night_price || tc.nightPrice || 0;
-    const cf = tc.cleaning_fee || tc.cleaningFee || 0;
+    const np  = tc.night_price  || tc.nightPrice  || 0;
+    const cf  = tc.cleaning_fee || tc.cleaningFee  || 0;
     const dep = tc.security_deposit || tc.securityDeposit || 0;
     const minN = tc.min_nights || tc.minNights || 1;
     const maxN = tc.max_nights || tc.maxNights || 90;
@@ -323,8 +406,6 @@ async function openDetail(p) {
   }
 
   openModal('modal-detail');
-
-  // Cargar media en segundo plano (no bloquea la apertura del modal)
   loadPropertyMedia(p.id);
 }
 
@@ -376,7 +457,6 @@ async function loadPropertyMedia(propertyID) {
 }
 
 /* ── Reserva temporaria ── */
-
 function openReservationModal() {
   if (!_detailProperty) return;
   document.getElementById('modal-res-title').textContent = 'Reservar: ' + (_detailProperty.title || 'Propiedad');
@@ -385,11 +465,10 @@ function openReservationModal() {
   document.getElementById('res-message').value = '';
   hideFormMsg('reservation-msg');
 
-  // Precargar fechas mínimas
-  const today = new Date();
+  const today    = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  document.getElementById('res-checkin').min  = today.toISOString().split('T')[0];
-  document.getElementById('res-checkout').min = tomorrow.toISOString().split('T')[0];
+  document.getElementById('res-checkin').min   = today.toISOString().split('T')[0];
+  document.getElementById('res-checkout').min  = tomorrow.toISOString().split('T')[0];
   document.getElementById('res-checkin').value  = '';
   document.getElementById('res-checkout').value = '';
 
@@ -490,9 +569,8 @@ async function reserveProperty(id) {
 }
 
 /* ══════════════════════════════════════
-   PUBLICAR PROPIEDAD (formulario único)
+   PUBLICAR PROPIEDAD
 ══════════════════════════════════════ */
-
 let _pendingMediaFiles = [];
 
 function openPublishModal() {
@@ -523,7 +601,7 @@ function handleFileSelect(e) {
 }
 
 function addFilesToQueue(files) {
-  const MAX = 50 * 1024 * 1024;
+  const MAX  = 50 * 1024 * 1024;
   const list = document.getElementById('media-file-list');
   files.forEach(f => {
     if (f.size > MAX) {
@@ -538,7 +616,7 @@ function addFilesToQueue(files) {
 }
 
 function fileListItem(name, status, cls) {
-  const div = document.createElement('div');
+  const div  = document.createElement('div');
   div.className = 'media-file-item';
   const icon = name.match(/\.(mp4|mov|avi|webm)$/i)
     ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`
@@ -552,7 +630,7 @@ function updateFileStatus(filename, text, cls) {
     if (item.dataset.filename === filename) {
       const span = item.querySelector('.file-status');
       span.textContent = text;
-      span.className = `file-status ${cls}`;
+      span.className   = `file-status ${cls}`;
     }
   });
 }
@@ -573,10 +651,8 @@ async function submitProperty(e) {
   hideFormMsg('publish-msg');
 
   const propID = 'prop-' + Date.now();
-
   const opType = document.getElementById('pub-operation').value;
 
-  // Recolectar amenities (solo si es TEMP)
   const amenities = [];
   if (opType === 'TEMP') {
     document.querySelectorAll('#amenities-grid input[type=checkbox]:checked').forEach(cb => {
@@ -584,7 +660,6 @@ async function submitProperty(e) {
     });
   }
 
-  // Recolectar pricing_rules (solo si es TEMP)
   const pricingRules = [];
   if (opType === 'TEMP') {
     const weekly  = parseFloat(document.getElementById('pub-discount-weekly').value);
@@ -617,7 +692,6 @@ async function submitProperty(e) {
     }),
   };
 
-  // Paso 1 — Crear la propiedad
   try {
     const res = await fetch(`${API.catalog}/api/v1/properties`, {
       method: 'POST',
@@ -637,7 +711,6 @@ async function submitProperty(e) {
     btn.classList.remove('loading'); btn.disabled = false;
   }
 
-  // Paso 2 — Subir archivos (si los hay)
   const mediaErrors = [];
   for (const [i, file] of _pendingMediaFiles.entries()) {
     try {
@@ -680,7 +753,6 @@ async function submitProperty(e) {
     }
   }
 
-  // Paso 3 — Guardar enlaces de redes sociales (si los hay)
   const socialLinks = {};
   document.querySelectorAll('#social-links-list .social-link-row').forEach(row => {
     const platform = row.querySelector('.social-platform').value.trim().toLowerCase();
@@ -712,7 +784,6 @@ async function submitProperty(e) {
 /* ═══════════════════════════════════════
    CRM — :8084
 ═══════════════════════════════════════ */
-
 async function loadLeads() {
   const tbody = document.getElementById('leads-tbody');
   tbody.innerHTML = `
@@ -744,10 +815,10 @@ async function loadLeads() {
 }
 
 function updateLeadStats(leads) {
-  document.getElementById('stat-leads-total').textContent = leads.length;
-  document.getElementById('stat-leads-new').textContent   = leads.filter(l => l.state === 'NEW').length;
-  document.getElementById('stat-leads-visit').textContent = leads.filter(l => l.state === 'VISIT_SCHEDULED').length;
-  document.getElementById('stat-leads-closed').textContent = leads.filter(l => l.state === 'CLOSED').length;
+  document.getElementById('stat-leads-total').textContent   = leads.length;
+  document.getElementById('stat-leads-new').textContent     = leads.filter(l => l.state === 'NEW').length;
+  document.getElementById('stat-leads-visit').textContent   = leads.filter(l => l.state === 'VISIT_SCHEDULED').length;
+  document.getElementById('stat-leads-closed').textContent  = leads.filter(l => l.state === 'CLOSED').length;
 }
 
 function renderLeads(leads) {
@@ -800,7 +871,6 @@ async function viewLead(leadId) {
   }
 }
 
-/* Nuevo lead manual */
 function openLeadModal() { openModal('modal-lead'); }
 
 async function submitLead(e) {
@@ -888,7 +958,7 @@ function authHeaders(extra) {
 
 /* ── Utility ── */
 function escHtml(str) {
-  return String(str)
+  return String(str ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -908,4 +978,7 @@ function logout() {
 document.addEventListener('DOMContentLoaded', () => {
   buildNav();
   showView('catalog');
+
+  // Iniciar polling de badge para el rol por defecto (agente)
+  manageBadgePolling(currentRole);
 });
