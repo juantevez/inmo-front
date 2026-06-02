@@ -413,7 +413,7 @@ async function fetchQuote() {
       headers: authHeaders(),
       body: JSON.stringify({ check_in_date: checkIn, check_out_date: checkOut }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       breakdown.innerHTML = `<div style="color:var(--danger);font-size:13px">${escHtml(data.message || 'Fechas no disponibles')}</div>`;
       return;
@@ -451,15 +451,15 @@ async function submitReservation() {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
-        property_id:   _detailProperty.id,
+        property_id:    _detailProperty.id,
         check_in_date:  checkIn,
         check_out_date: checkOut,
         guest_message:  document.getElementById('res-message').value.trim(),
       }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      showFormMsg('reservation-msg', data.message || `Error ${res.status}`, 'error');
+      showFormMsg('reservation-msg', data.message || `Error ${res.status} — verificá que el servidor de contratos esté corriendo`, 'error');
       return;
     }
     showFormMsg('reservation-msg', `¡Reserva enviada! El propietario tiene 24hs para confirmarla. ID: ${data.id}`, 'success');
