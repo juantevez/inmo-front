@@ -247,41 +247,229 @@ function goPage(n) {
   loadProperties();
 }
 
-/* Detalle de propiedad */
-function openDetail(p) {
+/* ── Detalle de propiedad ── */
+let _detailProperty = null;
+
+async function openDetail(p) {
+  _detailProperty = p;
   document.getElementById('detail-title').textContent = p.title || 'Propiedad';
   const stateLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservada', CLOSED: 'Alquilada/Vendida', UNDER_REPAIR: 'En reparación' };
   const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
   const price    = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
   const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+  const isTemp   = (p.operation_type || p.operationType) === 'TEMP';
+
+  // Sección amenities
+  let amenitiesHtml = '';
+  const amenities = p.temp_config?.amenities || p.amenities || [];
+  if (amenities.length > 0) {
+    const byCategory = { infrastructure: [], comfort: [], premium: [] };
+    amenities.forEach(a => { (byCategory[a.category] || byCategory.comfort).push(a.label); });
+    const catLabel = { infrastructure: '🏗️ Infraestructura', comfort: '🛋️ Confort', premium: '⭐ Premium' };
+    amenitiesHtml = `<div class="detail-field full"><span>Comodidades</span><div class="amenities-display">` +
+      Object.entries(byCategory).filter(([,v]) => v.length).map(([k,v]) =>
+        `<div class="amenity-group"><strong>${catLabel[k]}</strong> ${v.map(a => `<span class="amenity-tag">${escHtml(a)}</span>`).join('')}</div>`
+      ).join('') + `</div></div>`;
+  }
+
+  // Sección precio nocturno (TEMP)
+  let tempPriceHtml = '';
+  const tc = p.temp_config || p;
+  if (isTemp && (tc.night_price || tc.nightPrice)) {
+    const np = tc.night_price || tc.nightPrice || 0;
+    const cf = tc.cleaning_fee || tc.cleaningFee || 0;
+    const dep = tc.security_deposit || tc.securityDeposit || 0;
+    const minN = tc.min_nights || tc.minNights || 1;
+    const maxN = tc.max_nights || tc.maxNights || 90;
+    tempPriceHtml = `
+      <div class="detail-field"><span>Precio/noche</span><span>${Number(np).toLocaleString('es-AR')} ${currency}</span></div>
+      <div class="detail-field"><span>Limpieza</span><span>${Number(cf).toLocaleString('es-AR')} ${currency}</span></div>
+      <div class="detail-field"><span>Depósito</span><span>${Number(dep).toLocaleString('es-AR')} ${currency}</span></div>
+      <div class="detail-field"><span>Estadía</span><span>${minN}–${maxN} noches</span></div>
+      <div class="detail-field"><span>Check-in</span><span>${tc.check_in_time || tc.checkInTime || '14:00'} hs</span></div>
+      <div class="detail-field"><span>Check-out</span><span>${tc.check_out_time || tc.checkOutTime || '10:00'} hs</span></div>`;
+  }
 
   document.getElementById('detail-body').innerHTML = `
     <div class="detail-grid">
       <div class="detail-field full"><span>ID</span><span style="font-family:monospace;font-size:12px">${escHtml(p.id || '—')}</span></div>
       <div class="detail-field"><span>Estado</span><span class="prop-state-badge state-${p.state}">${stateLabel[p.state] || p.state}</span></div>
-      <div class="detail-field"><span>Precio</span><span>${price} ${currency}</span></div>
+      <div class="detail-field"><span>Precio base</span><span>${price} ${currency}</span></div>
+      ${tempPriceHtml}
       <div class="detail-field full"><span>Dirección</span><span>${escHtml(p.address || p.location?.address || '—')}</span></div>
-      <div class="detail-field"><span>Latitud</span><span>${p.latitude ?? p.location?.latitude ?? '—'}</span></div>
-      <div class="detail-field"><span>Longitud</span><span>${p.longitude ?? p.location?.longitude ?? '—'}</span></div>
       <div class="detail-field full"><span>Descripción</span><span>${escHtml(p.description || '—')}</span></div>
-      <div class="detail-field"><span>Owner ID</span><span style="font-family:monospace;font-size:12px">${escHtml(p.owner_id || '—')}</span></div>
+      ${amenitiesHtml}
     </div>`;
 
   const footer = document.getElementById('detail-footer');
-  footer.innerHTML = '';
-
   if (p.state === 'AVAILABLE') {
-    footer.innerHTML = `
-      <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
-      <button class="btn-primary-sm" onclick="reserveProperty('${p.id}')">
-        <span class="btn-text">Reservar</span>
-        <span class="btn-loader"></span>
-      </button>`;
+    if (isTemp) {
+      footer.innerHTML = `
+        <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
+        <button class="btn-primary-sm" onclick="openReservationModal()">
+          <span class="btn-text">Solicitar reserva</span>
+          <span class="btn-loader"></span>
+        </button>`;
+    } else {
+      footer.innerHTML = `
+        <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
+        <button class="btn-primary-sm" onclick="reserveProperty('${p.id}')">
+          <span class="btn-text">Reservar</span>
+          <span class="btn-loader"></span>
+        </button>`;
+    }
   } else {
     footer.innerHTML = `<button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>`;
   }
 
   openModal('modal-detail');
+
+  // Cargar media en segundo plano (no bloquea la apertura del modal)
+  loadPropertyMedia(p.id);
+}
+
+async function loadPropertyMedia(propertyID) {
+  try {
+    const res = await fetch(`${API.catalog}/api/v1/properties/${propertyID}/media`);
+    if (!res.ok) return;
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const images  = items.filter(m => m.type === 'IMAGE' || m.type === 'VIDEO');
+    const socials = items.filter(m => m.type === 'SOCIAL_LINK');
+
+    let html = '';
+
+    if (images.length > 0) {
+      html += `<div class="media-gallery">` +
+        images.map(m => {
+          if (m.type === 'VIDEO') {
+            return `<video class="media-thumb" src="${escHtml(m.url)}" controls preload="none"></video>`;
+          }
+          return `<a href="${escHtml(m.url)}" target="_blank" rel="noopener">
+                    <img class="media-thumb" src="${escHtml(m.url)}" alt="foto de la propiedad" loading="lazy" />
+                  </a>`;
+        }).join('') +
+        `</div>`;
+    }
+
+    if (socials.length > 0 && socials[0].social_links) {
+      const links = socials[0].social_links;
+      html += `<div class="social-links-display">` +
+        Object.entries(links).map(([platform, url]) =>
+          `<a class="social-link-pill" href="${escHtml(url)}" target="_blank" rel="noopener">
+             ${escHtml(platform)}
+           </a>`
+        ).join('') +
+        `</div>`;
+    }
+
+    if (html) {
+      const mediaSection = document.createElement('div');
+      mediaSection.className = 'detail-media-section';
+      mediaSection.innerHTML = html;
+      document.getElementById('detail-body').prepend(mediaSection);
+    }
+  } catch (err) {
+    console.error('[media load]', err);
+  }
+}
+
+/* ── Reserva temporaria ── */
+
+function openReservationModal() {
+  if (!_detailProperty) return;
+  document.getElementById('modal-res-title').textContent = 'Reservar: ' + (_detailProperty.title || 'Propiedad');
+  document.getElementById('quote-breakdown').style.display = 'none';
+  document.getElementById('quote-breakdown').innerHTML = '';
+  document.getElementById('res-message').value = '';
+  hideFormMsg('reservation-msg');
+
+  // Precargar fechas mínimas
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  document.getElementById('res-checkin').min  = today.toISOString().split('T')[0];
+  document.getElementById('res-checkout').min = tomorrow.toISOString().split('T')[0];
+  document.getElementById('res-checkin').value  = '';
+  document.getElementById('res-checkout').value = '';
+
+  closeModal('modal-detail');
+  openModal('modal-reservation');
+}
+
+async function fetchQuote() {
+  const propID   = _detailProperty?.id;
+  const checkIn  = document.getElementById('res-checkin').value;
+  const checkOut = document.getElementById('res-checkout').value;
+  if (!propID || !checkIn || !checkOut) return;
+
+  const breakdown = document.getElementById('quote-breakdown');
+  breakdown.style.display = 'block';
+  breakdown.innerHTML = '<div style="color:var(--ink-40);font-size:13px">Calculando...</div>';
+
+  try {
+    const res = await fetch(`${API.catalog}/api/v1/properties/${propID}/quote`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ check_in_date: checkIn, check_out_date: checkOut }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      breakdown.innerHTML = `<div style="color:var(--danger);font-size:13px">${escHtml(data.message || 'Fechas no disponibles')}</div>`;
+      return;
+    }
+    breakdown.innerHTML = `
+      <div class="quote-line"><span>${escHtml(data.nights + ' noches × ' + fmtARS(data.night_price))}</span><span>${fmtARS(data.subtotal)}</span></div>
+      ${data.discount_amount > 0 ? `<div class="quote-line discount"><span>Descuento (${data.discount_pct}%)</span><span>−${fmtARS(data.discount_amount)}</span></div>` : ''}
+      ${data.cleaning_fee > 0   ? `<div class="quote-line"><span>Limpieza</span><span>${fmtARS(data.cleaning_fee)}</span></div>` : ''}
+      ${data.security_deposit > 0 ? `<div class="quote-line muted"><span>Depósito (reintegrable)</span><span>${fmtARS(data.security_deposit)}</span></div>` : ''}
+      <div class="quote-line total"><span>Total</span><span>${fmtARS(data.total)}</span></div>
+      <div class="quote-times">Check-in ${data.check_in_time} hs · Check-out ${data.check_out_time} hs</div>`;
+  } catch (err) {
+    breakdown.innerHTML = `<div style="color:var(--danger);font-size:13px">Error al calcular precio</div>`;
+    console.error('[quote]', err);
+  }
+}
+
+function fmtARS(n) { return Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 }); }
+
+async function submitReservation() {
+  const btn = document.getElementById('btn-res-submit');
+  btn.classList.add('loading'); btn.disabled = true;
+  hideFormMsg('reservation-msg');
+
+  const checkIn  = document.getElementById('res-checkin').value;
+  const checkOut = document.getElementById('res-checkout').value;
+  if (!checkIn || !checkOut) {
+    showFormMsg('reservation-msg', 'Seleccioná las fechas de check-in y check-out.', 'error');
+    btn.classList.remove('loading'); btn.disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API.contracts}/api/v1/reservations`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        property_id:   _detailProperty.id,
+        check_in_date:  checkIn,
+        check_out_date: checkOut,
+        guest_message:  document.getElementById('res-message').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showFormMsg('reservation-msg', data.message || `Error ${res.status}`, 'error');
+      return;
+    }
+    showFormMsg('reservation-msg', `¡Reserva enviada! El propietario tiene 24hs para confirmarla. ID: ${data.id}`, 'success');
+    setTimeout(() => { closeModal('modal-reservation'); loadProperties(); }, 2000);
+  } catch (err) {
+    showFormMsg('reservation-msg', 'No se pudo conectar al servidor de contratos.', 'error');
+    console.error('[reservation]', err);
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
 }
 
 async function reserveProperty(id) {
@@ -301,8 +489,82 @@ async function reserveProperty(id) {
   }
 }
 
-/* Publicar propiedad */
-function openPublishModal() { openModal('modal-publish'); }
+/* ══════════════════════════════════════
+   PUBLICAR PROPIEDAD (formulario único)
+══════════════════════════════════════ */
+
+let _pendingMediaFiles = [];
+
+function openPublishModal() {
+  _pendingMediaFiles = [];
+  document.getElementById('media-file-list').innerHTML = '';
+  document.getElementById('social-links-list').innerHTML = `
+    <div class="social-link-row">
+      <input type="text" class="social-platform" placeholder="Red (ej: instagram)" />
+      <input type="url"  class="social-url"      placeholder="https://..." />
+    </div>`;
+  document.getElementById('pub-operation').value = 'SALE';
+  toggleTempSection('SALE');
+  openModal('modal-publish');
+
+  const zone = document.getElementById('media-drop-zone');
+  zone.ondragover  = e => { e.preventDefault(); zone.classList.add('drag-over'); };
+  zone.ondragleave = () => zone.classList.remove('drag-over');
+  zone.ondrop      = e => { e.preventDefault(); zone.classList.remove('drag-over'); addFilesToQueue([...e.dataTransfer.files]); };
+}
+
+function toggleTempSection(opType) {
+  document.getElementById('temp-config-section').style.display = opType === 'TEMP' ? 'block' : 'none';
+}
+
+function handleFileSelect(e) {
+  addFilesToQueue([...e.target.files]);
+  e.target.value = '';
+}
+
+function addFilesToQueue(files) {
+  const MAX = 50 * 1024 * 1024;
+  const list = document.getElementById('media-file-list');
+  files.forEach(f => {
+    if (f.size > MAX) {
+      list.appendChild(fileListItem(f.name, 'Excede 50 MB', 'err'));
+      return;
+    }
+    _pendingMediaFiles.push(f);
+    const item = fileListItem(f.name, 'Pendiente', '');
+    item.dataset.filename = f.name;
+    list.appendChild(item);
+  });
+}
+
+function fileListItem(name, status, cls) {
+  const div = document.createElement('div');
+  div.className = 'media-file-item';
+  const icon = name.match(/\.(mp4|mov|avi|webm)$/i)
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+  div.innerHTML = `${icon}<span class="file-name">${escHtml(name)}</span><span class="file-status ${cls}">${escHtml(status)}</span>`;
+  return div;
+}
+
+function updateFileStatus(filename, text, cls) {
+  document.querySelectorAll('#media-file-list .media-file-item').forEach(item => {
+    if (item.dataset.filename === filename) {
+      const span = item.querySelector('.file-status');
+      span.textContent = text;
+      span.className = `file-status ${cls}`;
+    }
+  });
+}
+
+function addSocialLinkRow() {
+  const row = document.createElement('div');
+  row.className = 'social-link-row';
+  row.innerHTML = `
+    <input type="text" class="social-platform" placeholder="Red (ej: facebook)" />
+    <input type="url"  class="social-url"      placeholder="https://..." />`;
+  document.getElementById('social-links-list').appendChild(row);
+}
 
 async function submitProperty(e) {
   e.preventDefault();
@@ -310,42 +572,141 @@ async function submitProperty(e) {
   btn.classList.add('loading'); btn.disabled = true;
   hideFormMsg('publish-msg');
 
-  const id = 'prop-' + Date.now();
+  const propID = 'prop-' + Date.now();
+
+  const opType = document.getElementById('pub-operation').value;
+
+  // Recolectar amenities (solo si es TEMP)
+  const amenities = [];
+  if (opType === 'TEMP') {
+    document.querySelectorAll('#amenities-grid input[type=checkbox]:checked').forEach(cb => {
+      amenities.push({ key: cb.value, label: cb.dataset.label, category: cb.dataset.cat });
+    });
+  }
+
+  // Recolectar pricing_rules (solo si es TEMP)
+  const pricingRules = [];
+  if (opType === 'TEMP') {
+    const weekly  = parseFloat(document.getElementById('pub-discount-weekly').value);
+    const monthly = parseFloat(document.getElementById('pub-discount-monthly').value);
+    if (weekly  > 0) pricingRules.push({ type: 'weekly',  min_nights: 7,  discount_pct: weekly });
+    if (monthly > 0) pricingRules.push({ type: 'monthly', min_nights: 28, discount_pct: monthly });
+  }
+
   const body = {
-    id,
+    id:             propID,
     title:          document.getElementById('pub-title').value.trim(),
     description:    document.getElementById('pub-desc').value.trim(),
-    operation_type: document.getElementById('pub-operation').value,
+    operation_type: opType,
     pet_policy:     document.getElementById('pub-pet-policy').value,
     price:          parseFloat(document.getElementById('pub-price').value),
     currency:       document.getElementById('pub-currency').value,
     address:        document.getElementById('pub-address').value.trim(),
     latitude:       parseFloat(document.getElementById('pub-lat').value) || -34.6037,
     longitude:      parseFloat(document.getElementById('pub-lng').value) || -58.3816,
+    ...(opType === 'TEMP' && {
+      night_price:       parseFloat(document.getElementById('pub-night-price').value) || 0,
+      cleaning_fee:      parseFloat(document.getElementById('pub-cleaning-fee').value) || 0,
+      security_deposit:  parseFloat(document.getElementById('pub-deposit').value) || 0,
+      min_nights:        parseInt(document.getElementById('pub-min-nights').value) || 1,
+      max_nights:        parseInt(document.getElementById('pub-max-nights').value) || 90,
+      check_in_time:     document.getElementById('pub-checkin-time').value || '14:00',
+      check_out_time:    document.getElementById('pub-checkout-time').value || '10:00',
+      amenities,
+      pricing_rules: pricingRules,
+    }),
   };
 
+  // Paso 1 — Crear la propiedad
   try {
     const res = await fetch(`${API.catalog}/api/v1/properties`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(body),
     });
-
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       showFormMsg('publish-msg', err.message || err.error || `Error ${res.status}`, 'error');
       return;
     }
-
-    showFormMsg('publish-msg', '¡Propiedad publicada! El evento viajará a NATS → CRM.', 'success');
-    document.getElementById('form-publish').reset();
-    setTimeout(() => { closeModal('modal-publish'); loadProperties(); }, 1200);
   } catch (err) {
     showFormMsg('publish-msg', 'No se pudo conectar al servidor de catálogo.', 'error');
     console.error('[publish]', err);
+    return;
   } finally {
     btn.classList.remove('loading'); btn.disabled = false;
   }
+
+  // Paso 2 — Subir archivos (si los hay)
+  const mediaErrors = [];
+  for (const [i, file] of _pendingMediaFiles.entries()) {
+    try {
+      updateFileStatus(file.name, 'Subiendo...', '');
+      const urlRes = await fetch(`${API.catalog}/api/v1/properties/${propID}/media/upload-url`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ filename: file.name, content_type: file.type || 'application/octet-stream' }),
+      });
+      if (!urlRes.ok) {
+        const e = await urlRes.json().catch(() => ({}));
+        updateFileStatus(file.name, e.message || `Error ${urlRes.status}`, 'err');
+        mediaErrors.push(file.name);
+        continue;
+      }
+      const { presigned_url, final_url } = await urlRes.json();
+
+      const putRes = await fetch(presigned_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      });
+      if (!putRes.ok) {
+        updateFileStatus(file.name, `Error S3 ${putRes.status}`, 'err');
+        mediaErrors.push(file.name);
+        continue;
+      }
+
+      const mediaType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+      await fetch(`${API.catalog}/api/v1/properties/${propID}/media`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ url: final_url, type: mediaType, sort_order: i }),
+      });
+      updateFileStatus(file.name, 'Subido', 'ok');
+    } catch (err) {
+      console.error('[media upload]', file.name, err);
+      updateFileStatus(file.name, 'Error de red', 'err');
+      mediaErrors.push(file.name);
+    }
+  }
+
+  // Paso 3 — Guardar enlaces de redes sociales (si los hay)
+  const socialLinks = {};
+  document.querySelectorAll('#social-links-list .social-link-row').forEach(row => {
+    const platform = row.querySelector('.social-platform').value.trim().toLowerCase();
+    const url      = row.querySelector('.social-url').value.trim();
+    if (platform && url) socialLinks[platform] = url;
+  });
+  if (Object.keys(socialLinks).length > 0) {
+    try {
+      await fetch(`${API.catalog}/api/v1/properties/${propID}/media`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ type: 'SOCIAL_LINK', sort_order: 99, social_links: socialLinks }),
+      });
+    } catch (err) {
+      console.error('[social links]', err);
+    }
+  }
+
+  const mediaNote = mediaErrors.length > 0
+    ? ` (${mediaErrors.length} archivo(s) fallaron)`
+    : (_pendingMediaFiles.length > 0 ? ' con multimedia guardada' : '');
+  showFormMsg('publish-msg', `¡Propiedad publicada${mediaNote}!`, mediaErrors.length > 0 ? 'error' : 'success');
+
+  document.getElementById('form-publish').reset();
+  _pendingMediaFiles = [];
+  setTimeout(() => { closeModal('modal-publish'); loadProperties(); }, 1400);
 }
 
 /* ═══════════════════════════════════════

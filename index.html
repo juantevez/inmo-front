@@ -274,7 +274,7 @@
         <div class="form-row">
           <div class="field-group">
             <label for="pub-operation">Tipo de operación</label>
-            <select id="pub-operation" required>
+            <select id="pub-operation" required onchange="toggleTempSection(this.value)">
               <option value="SALE">Venta</option>
               <option value="RENT">Alquiler</option>
               <option value="TEMP">Temporario</option>
@@ -316,6 +316,122 @@
             <input type="number" id="pub-lng" step="any" placeholder="-58.3816" />
           </div>
         </div>
+
+        <!-- ── Configuración temporario (solo visible si operation_type = TEMP) ── -->
+        <div id="temp-config-section" style="display:none">
+          <div class="form-section-divider">
+            Configuración temporario
+          </div>
+
+          <div class="form-row">
+            <div class="field-group">
+              <label for="pub-night-price">Precio por noche</label>
+              <input type="number" id="pub-night-price" step="0.01" placeholder="40.00" />
+            </div>
+            <div class="field-group">
+              <label for="pub-cleaning-fee">Tarifa de limpieza (fija)</label>
+              <input type="number" id="pub-cleaning-fee" step="0.01" placeholder="15.00" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field-group">
+              <label for="pub-deposit">Depósito en garantía</label>
+              <input type="number" id="pub-deposit" step="0.01" placeholder="100.00" />
+            </div>
+            <div class="field-group">
+              <label></label><!-- spacer -->
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field-group">
+              <label for="pub-min-nights">Noches mínimas</label>
+              <input type="number" id="pub-min-nights" min="1" placeholder="3" />
+            </div>
+            <div class="field-group">
+              <label for="pub-max-nights">Noches máximas</label>
+              <input type="number" id="pub-max-nights" min="1" placeholder="90" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field-group">
+              <label for="pub-checkin-time">Check-in (hora)</label>
+              <input type="time" id="pub-checkin-time" value="14:00" />
+            </div>
+            <div class="field-group">
+              <label for="pub-checkout-time">Check-out (hora)</label>
+              <input type="time" id="pub-checkout-time" value="10:00" />
+            </div>
+          </div>
+
+          <div class="form-section-divider">
+            Descuentos por estadía <span class="optional-tag">opcional</span>
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label for="pub-discount-weekly">Desc. semanal (7+ noches) %</label>
+              <input type="number" id="pub-discount-weekly" min="0" max="100" step="0.5" placeholder="10" />
+            </div>
+            <div class="field-group">
+              <label for="pub-discount-monthly">Desc. mensual (28+ noches) %</label>
+              <input type="number" id="pub-discount-monthly" min="0" max="100" step="0.5" placeholder="25" />
+            </div>
+          </div>
+
+          <div class="form-section-divider">
+            Comodidades <span class="optional-tag">opcional</span>
+          </div>
+          <div id="amenities-grid" class="amenities-grid">
+            <!-- Infraestructura -->
+            <label class="amenity-check"><input type="checkbox" value="wifi" data-cat="infrastructure" data-label="Wi-Fi" /><span>📶 Wi-Fi</span></label>
+            <label class="amenity-check"><input type="checkbox" value="ac" data-cat="infrastructure" data-label="Aire acondicionado" /><span>❄️ A/C</span></label>
+            <label class="amenity-check"><input type="checkbox" value="heating" data-cat="infrastructure" data-label="Calefacción" /><span>🔥 Calefacción</span></label>
+            <label class="amenity-check"><input type="checkbox" value="elevator" data-cat="infrastructure" data-label="Ascensor" /><span>🛗 Ascensor</span></label>
+            <!-- Confort -->
+            <label class="amenity-check"><input type="checkbox" value="bed_linen" data-cat="comfort" data-label="Ropa de cama" /><span>🛏️ Ropa de cama</span></label>
+            <label class="amenity-check"><input type="checkbox" value="kitchen" data-cat="comfort" data-label="Vajilla completa" /><span>🍽️ Vajilla</span></label>
+            <label class="amenity-check"><input type="checkbox" value="coffee_maker" data-cat="comfort" data-label="Cafetera" /><span>☕ Cafetera</span></label>
+            <label class="amenity-check"><input type="checkbox" value="microwave" data-cat="comfort" data-label="Microondas" /><span>📦 Microondas</span></label>
+            <label class="amenity-check"><input type="checkbox" value="hair_dryer" data-cat="comfort" data-label="Secador de pelo" /><span>💨 Secador</span></label>
+            <label class="amenity-check"><input type="checkbox" value="iron" data-cat="comfort" data-label="Plancha" /><span>👔 Plancha</span></label>
+            <!-- Premium -->
+            <label class="amenity-check"><input type="checkbox" value="pool" data-cat="premium" data-label="Piscina" /><span>🏊 Piscina</span></label>
+            <label class="amenity-check"><input type="checkbox" value="gym" data-cat="premium" data-label="Gimnasio" /><span>🏋️ Gimnasio</span></label>
+            <label class="amenity-check"><input type="checkbox" value="bbq" data-cat="premium" data-label="Parrilla" /><span>🔥 Parrilla</span></label>
+            <label class="amenity-check"><input type="checkbox" value="sum" data-cat="premium" data-label="SUM" /><span>🎉 SUM</span></label>
+            <label class="amenity-check"><input type="checkbox" value="security" data-cat="premium" data-label="Seguridad 24hs" /><span>🔒 Seguridad 24hs</span></label>
+          </div>
+        </div>
+
+        <!-- ── Multimedia (opcional) ── -->
+        <div class="form-section-divider">
+          Multimedia <span class="optional-tag">opcional</span>
+        </div>
+
+        <div class="field-group">
+          <label>Fotos y videos</label>
+          <div id="media-drop-zone" class="media-drop-zone" onclick="document.getElementById('media-file-input').click()">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Hacé clic o arrastrá archivos acá</span>
+            <span class="drop-hint">JPG, PNG, MP4 — máx 50 MB c/u</span>
+          </div>
+          <input type="file" id="media-file-input" accept="image/*,video/*" multiple style="display:none" onchange="handleFileSelect(event)" />
+        </div>
+        <div id="media-file-list"></div>
+
+        <div class="field-group" style="margin-top:8px">
+          <label>Links de redes sociales</label>
+          <div id="social-links-list">
+            <div class="social-link-row">
+              <input type="text" class="social-platform" placeholder="Red (ej: instagram)" />
+              <input type="url"  class="social-url"      placeholder="https://..." />
+            </div>
+          </div>
+          <button type="button" class="btn-add-row" onclick="addSocialLinkRow()">+ Agregar otro enlace</button>
+        </div>
+
         <div class="form-msg" id="publish-msg"></div>
       </div>
       <div class="modal-footer">
@@ -326,6 +442,47 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ══ MODAL: Reserva temporaria ══ -->
+<div class="modal-overlay" id="modal-reservation" onclick="closeModal('modal-reservation')">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:480px">
+    <div class="modal-header">
+      <h2 id="modal-res-title">Solicitar reserva</h2>
+      <button class="modal-close" onclick="closeModal('modal-reservation')" aria-label="Cerrar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <!-- Desglose de precio (se rellena dinámicamente) -->
+      <div id="quote-breakdown" class="quote-card" style="display:none"></div>
+
+      <div class="form-row" style="margin-top:12px">
+        <div class="field-group">
+          <label for="res-checkin">Check-in</label>
+          <input type="date" id="res-checkin" onchange="fetchQuote()" />
+        </div>
+        <div class="field-group">
+          <label for="res-checkout">Check-out</label>
+          <input type="date" id="res-checkout" onchange="fetchQuote()" />
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="res-message">Mensaje al propietario <span class="optional-tag">opcional</span></label>
+        <textarea id="res-message" rows="2" placeholder="Viajo por trabajo, llego el viernes a la tarde..."></textarea>
+      </div>
+
+      <div class="form-msg" id="reservation-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-ghost" onclick="closeModal('modal-reservation')">Cancelar</button>
+      <button type="button" class="btn-primary-sm" id="btn-res-submit" onclick="submitReservation()">
+        <span class="btn-text">Solicitar reserva</span>
+        <span class="btn-loader" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 </div>
 

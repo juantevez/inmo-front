@@ -122,7 +122,7 @@ function propCard(p) {
 
 /* ── Detail modal ── */
 
-function openDetail(p) {
+async function openDetail(p) {
   selectedProp = p;
 
   const rawPrice  = typeof p.price === 'object' ? p.price?.amount : p.price;
@@ -135,7 +135,7 @@ function openDetail(p) {
   const petPolicy = p.pet_policy || 'NOT_ALLOWED';
 
   const petNote = (opType === 'TEMP' && petPolicy !== 'NOT_ALLOWED')
-    ? `<div class="detail-pet-note">🐾 Esta propiedad acepta mascotas en alquiler temporario. Puede aplicarse un cargo adicional de limpieza o depósito en garantía.</div>`
+    ? `<div class="detail-pet-note">🐾 Esta propiedad acepta mascotas. Puede aplicarse cargo adicional de limpieza o depósito.</div>`
     : (petPolicy !== 'NOT_ALLOWED'
         ? `<div class="detail-pet-chip">${petLabel[petPolicy]}</div>`
         : '');
@@ -155,8 +155,63 @@ function openDetail(p) {
     ${petNote}
   `;
 
+  // Resetear zona de imagen al placeholder mientras carga
+  const imgZone = document.getElementById('modal-detail-img');
+  imgZone.innerHTML = `<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".15" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+
   document.getElementById('modal-detail').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  // Cargar media sin bloquear la apertura del modal
+  loadDetailMedia(p.id, imgZone);
+}
+
+async function loadDetailMedia(propertyID, imgZone) {
+  try {
+    const res = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media`);
+    if (!res.ok) return;
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const images  = items.filter(m => m.type === 'IMAGE' || m.type === 'VIDEO');
+    const socials = items.filter(m => m.type === 'SOCIAL_LINK');
+
+    if (images.length === 0 && socials.length === 0) return;
+
+    let html = '';
+
+    if (images.length > 0) {
+      // Imagen principal (primera)
+      const first = images[0];
+      if (first.type === 'VIDEO') {
+        html += `<video class="detail-main-img" src="${escHtml(first.url)}" controls preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>`;
+      } else {
+        html += `<img class="detail-main-img" src="${escHtml(first.url)}" alt="Foto principal de la propiedad" style="width:100%;height:100%;object-fit:cover" />`;
+      }
+      // Miniaturas si hay más de una
+      if (images.length > 1) {
+        html += `<div class="detail-thumbs">` +
+          images.slice(1).map(m =>
+            m.type === 'VIDEO'
+              ? `<video class="detail-thumb-sm" src="${escHtml(m.url)}" preload="none" onclick="this.parentElement.previousElementSibling.src='${escHtml(m.url)}'"></video>`
+              : `<img class="detail-thumb-sm" src="${escHtml(m.url)}" alt="" loading="lazy" onclick="document.querySelector('.detail-main-img').src='${escHtml(m.url)}'" />`
+          ).join('') +
+          `</div>`;
+      }
+    }
+
+    if (socials.length > 0 && socials[0].social_links) {
+      html += `<div class="detail-social-pills">` +
+        Object.entries(socials[0].social_links).map(([platform, url]) =>
+          `<a class="detail-social-pill" href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(platform)}</a>`
+        ).join('') +
+        `</div>`;
+    }
+
+    imgZone.innerHTML = html;
+  } catch (err) {
+    console.error('[landing media]', err);
+  }
 }
 
 function closeDetailModal() {
