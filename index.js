@@ -8,31 +8,6 @@ let currentOp    = '';
 let selectedProp = null;
 
 
-/* ── Auth redirect: si ya hay sesión activa → dashboard ── */
-(function checkExistingSession() {
-  const token = localStorage.getItem('inmo_token');
-  if (!token) return; // sin token → quedarse en landing normalmente
-
-  // Verificar que el token no esté expirado
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const nowSec  = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < nowSec) {
-      // Expirado → limpiar y quedarse en landing
-      localStorage.removeItem('inmo_token');
-      localStorage.removeItem('inmo_user');
-      return;
-    }
-    // Token válido → ir al dashboard
-    // Usamos replace() para no agregar landing al historial
-    window.location.replace('app.html');
-  } catch (_) {
-    // Token malformado → limpiar y quedarse en landing
-    localStorage.removeItem('inmo_token');
-    localStorage.removeItem('inmo_user');
-  }
-})();
-
 
 /* ── Search ── */
 
