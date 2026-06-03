@@ -976,10 +976,49 @@ function logout() {
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
+
+  /* ── 1. Guard de autenticación ─────────────────────────
+     Si no hay token válido → redirigir a landing.
+     Cortamos la ejecución antes de inicializar cualquier
+     cosa del dashboard para evitar flashes de contenido
+     y llamadas a APIs protegidas sin token.
+  ───────────────────────────────────────────────────────── */
+  const token = localStorage.getItem('inmo_token');
+  if (!token) {
+    // Guardar la URL actual para redirigir de vuelta post-login (opcional)
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.replace('landing.html?return=' + returnUrl);
+    return; // detener toda ejecución del dashboard
+  }
+
+  /* ── 2. Verificación liviana del token ─────────────────
+     Decodificamos el payload del JWT (sin verificar firma,
+     eso lo hace el backend) solo para chequear expiración.
+     Si expiró → limpiar y redirigir a landing.
+  ───────────────────────────────────────────────────────── */
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const nowSec  = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < nowSec) {
+      // Token expirado — limpiar storage y redirigir
+      localStorage.removeItem('inmo_token');
+      localStorage.removeItem('inmo_user');
+      window.location.replace('landing.html?expired=1');
+      return;
+    }
+  } catch (_) {
+    // Token malformado — tratar como no autenticado
+    localStorage.removeItem('inmo_token');
+    localStorage.removeItem('inmo_user');
+    window.location.replace('landing.html');
+    return;
+  }
+
+  /* ── 3. Init normal del dashboard ──────────────────────
+     Solo llegamos acá si el token existe y no expiró.
+  ───────────────────────────────────────────────────────── */
   buildNav();
   showView('catalog');
-
-  // Iniciar polling de badge para el rol por defecto (agente)
   manageBadgePolling(currentRole);
 });
 

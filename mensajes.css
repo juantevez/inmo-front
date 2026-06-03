@@ -733,3 +733,506 @@ body {
 
   .btn-topbar-dash span { display: none; } /* solo ícono en mobile */
 }
+
+/* ── Botón ⚙️ en el header del chat (solo propietario/agente) ── */
+.btn-chat-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--sand-200);
+  cursor: pointer;
+  color: var(--ink-40);
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.btn-chat-settings:hover {
+  background: var(--sand-100);
+  border-color: var(--sand-300);
+  color: var(--ink);
+}
+
+/* ── Overlay y contenedor del modal ── */
+.modal-avail-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(26,24,20,0.52);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-avail-overlay.open { display: flex; }
+
+@keyframes availIn {
+  from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-avail {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 600px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  animation: availIn 200ms ease;
+  overflow: hidden;
+}
+
+/* ── Header del modal ── */
+.modal-avail-header {
+  background: linear-gradient(135deg, var(--ink) 0%, #2A2218 100%);
+  padding: 20px 24px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+/* ─.modal-avail-header-info {} ── */
+
+.modal-avail-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
+.modal-avail-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.modal-avail-close {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 50%;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: rgba(255,255,255,0.55);
+  flex-shrink: 0;
+  margin-left: 12px;
+  transition: background var(--transition), color var(--transition);
+}
+
+.modal-avail-close:hover {
+  background: rgba(255,255,255,0.18);
+  color: var(--white);
+}
+
+/* ── Tabs ── */
+.avail-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--sand-200);
+  padding: 0 24px;
+  background: var(--white);
+  flex-shrink: 0;
+}
+
+.avail-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 4px;
+  margin-right: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-40);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color var(--transition), border-color var(--transition);
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.avail-tab:hover { color: var(--ink-70); }
+
+.avail-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+
+/* ── Cuerpo del modal (scrollable) ── */
+.modal-avail-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sand-200) transparent;
+}
+
+.modal-avail-body::-webkit-scrollbar { width: 4px; }
+.modal-avail-body::-webkit-scrollbar-thumb { background: var(--sand-200); border-radius: 99px; }
+
+/* ── Paneles de tab ── */
+.avail-panel { display: none; padding: 20px 24px; }
+.avail-panel.active { display: block; }
+
+/* ══════════════════════════════════════
+   TAB 1 — HORARIOS SEMANALES
+══════════════════════════════════════ */
+.avail-week-intro {
+  font-size: 13px;
+  color: var(--ink-40);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.avail-day-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--sand-100);
+}
+
+.avail-day-row:last-child { border-bottom: none; }
+
+/* Toggle día activo */
+.avail-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.avail-day-toggle input { display: none; }
+
+.toggle-track {
+  width: 34px; height: 18px;
+  background: var(--sand-200);
+  border-radius: 99px;
+  position: relative;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 12px; height: 12px;
+  background: var(--white);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  transition: transform var(--transition);
+}
+
+.avail-day-toggle input:checked ~ .toggle-track { background: var(--gold); }
+.avail-day-toggle input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); }
+
+.avail-day-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* Franjas horarias (chips) */
+.avail-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.slot-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: var(--ink-40);
+  background: var(--white);
+  border: 1px solid var(--sand-200);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.slot-chip:hover { border-color: var(--gold); color: var(--ink-70); }
+
+.slot-chip.selected {
+  background: rgba(201,169,110,0.12);
+  border-color: var(--gold);
+  color: var(--gold-dark);
+  font-weight: 500;
+}
+
+/* Deshabilitado cuando el día no está activo */
+.avail-day-row.disabled .avail-slots { opacity: 0.3; pointer-events: none; }
+.avail-day-row.disabled .avail-day-name { color: var(--ink-20); }
+
+/* Acción: copiar a todos */
+.avail-copy-btn {
+  font-size: 11px;
+  color: var(--gold-dark);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  white-space: nowrap;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.avail-day-row:hover .avail-copy-btn,
+.avail-day-row.active-day .avail-copy-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.avail-copy-btn:hover { background: rgba(201,169,110,0.1); text-decoration: underline; }
+
+/* ══════════════════════════════════════
+   TAB 2 — BLOQUEOS PUNTUALES
+══════════════════════════════════════ */
+.avail-block-intro {
+  font-size: 13px;
+  color: var(--ink-40);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Formulario agregar bloqueo */
+.avail-block-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.avail-block-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.avail-block-field label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-40);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.avail-block-field input {
+  padding: 7px 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.avail-block-field input:focus { border-color: var(--gold); }
+
+.btn-add-block {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition);
+  align-self: flex-end;
+}
+
+.btn-add-block:hover { background: var(--gold-dark); border-color: var(--gold-dark); }
+
+/* Lista de bloqueos */
+.avail-block-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.block-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--white);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-lg);
+  animation: msgIn 160ms ease;
+}
+
+.block-item-icon {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--danger-bg);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.block-item-info { flex: 1; min-width: 0; }
+
+.block-item-range {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.block-item-note {
+  font-size: 12px;
+  color: var(--ink-40);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-remove-block {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-20);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-remove-block:hover { color: var(--danger); background: var(--danger-bg); }
+
+.avail-block-empty {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--ink-20);
+  font-size: 13px;
+  border: 1px dashed var(--sand-200);
+  border-radius: var(--radius-lg);
+}
+
+/* ══════════════════════════════════════
+   FOOTER DEL MODAL
+══════════════════════════════════════ */
+.modal-avail-footer {
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--sand-100);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--white);
+}
+
+.avail-footer-msg {
+  font-size: 12px;
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.avail-footer-msg.visible { opacity: 1; }
+
+.avail-footer-actions { display: flex; gap: 8px; margin-left: auto; }
+
+.btn-avail-cancel {
+  height: 36px;
+  padding: 0 16px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-40);
+  background: transparent;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.btn-avail-cancel:hover { background: var(--sand-50); }
+
+.btn-avail-save {
+  height: 36px;
+  padding: 0 20px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background var(--transition);
+  position: relative;
+}
+
+.btn-avail-save:hover:not(:disabled) { background: var(--gold-dark); border-color: var(--gold-dark); }
+.btn-avail-save:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-avail-save .btn-loader {
+  display: none;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(26,24,20,0.2);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+}
+
+.btn-avail-save.loading .btn-text   { opacity: 0.5; }
+.btn-avail-save.loading .btn-loader { display: block; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .modal-avail { max-height: 95vh; }
+  .modal-avail-title { font-size: 15px; }
+
+  .avail-day-row {
+    grid-template-columns: 80px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .avail-copy-btn { grid-column: 1 / -1; opacity: 1; pointer-events: auto; }
+
+  .avail-block-form {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .btn-add-block { grid-column: 1 / -1; }
+}
