@@ -297,6 +297,27 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('search-zone').addEventListener('keydown', e => {
     if (e.key === 'Enter') doSearch();
   });
+
+  // Retorno desde login: ?prop=<id>&action=<contact|visit>
+  const params = new URLSearchParams(window.location.search);
+  const returnAction = params.get('action');
+  const returnPropId = params.get('prop');
+  if (returnAction && returnPropId && localStorage.getItem('inmo_token')) {
+    // Limpiar params de la URL sin recargar
+    history.replaceState({}, '', 'index.html');
+    // Esperar a que se carguen las propiedades antes de abrir el detalle
+    const waitAndAct = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_CATALOG}/api/v1/properties/${returnPropId}`);
+        if (!res.ok) return;
+        const prop = await res.json();
+        clearInterval(waitAndAct);
+        selectedProp = prop;
+        requireAuth(returnAction);
+      } catch (_) { /* reintentar en próximo tick */ }
+    }, 600);
+    setTimeout(() => clearInterval(waitAndAct), 8000); // timeout de seguridad
+  }
 });
 
 /* ══════════════════════════════════════════════════════════
@@ -322,13 +343,16 @@ let _selectedTime    = null;  // chip de horario seleccionado
 function requireAuth(action) {
   const token = localStorage.getItem('inmo_token');
 
-  // Si el usuario está logueado Y la acción es 'visit' → flujo propio
   if (token && action === 'visit') {
     openVisitModal(selectedProp);
     return;
   }
 
-  // Para cualquier otra acción (contact, etc.) o sin token → auth gate existente
+  if (token && action === 'contact') {
+    startContactChat(selectedProp);
+    return;
+  }
+
   const titles = {
     contact: 'Contactá al propietario',
     visit:   'Agendá una visita',
@@ -346,6 +370,38 @@ function requireAuth(action) {
   document.getElementById('btn-auth-register').href = `loginregister.html?tab=register&return=${returnUrl}`;
 
   document.getElementById('modal-auth').classList.add('open');
+}
+
+async function startContactChat(prop) {
+  if (!prop) return;
+
+  const token = localStorage.getItem('inmo_token');
+  const btn   = document.querySelector('#modal-detail .btn-contact');
+  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando chat…'; }
+
+  try {
+    const res = await fetch(`${API_CHAT}/api/v1/chats`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ property_id: prop.id, advertiser_id: prop.owner_id }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('[contact-chat] error body:', errBody);
+      throw new Error(`HTTP ${res.status}: ${errBody.message || JSON.stringify(errBody)}`);
+    }
+
+    const data   = await res.json();
+    const chatId = data.id || data.conversation_id;
+    if (!chatId) throw new Error('sin id de chat');
+
+    window.location.href = `mensajes.html?conv=${chatId}`;
+  } catch (err) {
+    console.error('[contact-chat]', err);
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar mensaje al propietario'; }
+    alert('No se pudo iniciar la conversación. Intentá de nuevo.');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
