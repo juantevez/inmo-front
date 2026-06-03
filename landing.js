@@ -296,3 +296,214 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') doSearch();
   });
 });
+
+/* ══════════════════════════════════════════════════════════
+   AGENDAR VISITA — Fase 3 Pantalla A
+   Agregar en landing.js (reemplaza el bloque requireAuth
+   para la acción 'visit' y agrega las funciones nuevas)
+══════════════════════════════════════════════════════════ */
+
+/* ─── Constantes ─── */
+const API_CHAT = 'http://127.0.0.1:8000'; // pasa por el gateway igual que el resto
+
+/* ─── Estado del modal ─── */
+let _visitPropId     = null;  // property_id de la propiedad seleccionada
+let _visitPropTitle  = null;  // título para mostrar en el header del modal
+let _selectedTime    = null;  // chip de horario seleccionado
+
+/* ═══════════════════════════════════════════════════════
+   1. REEMPLAZAR requireAuth — ahora distingue 'visit'
+   ═══════════════════════════════════════════════════════
+   INSTRUCCIÓN: reemplazar la función requireAuth existente
+   en landing.js por esta versión ampliada:
+*/
+function requireAuth(action) {
+  const token = localStorage.getItem('inmo_token');
+
+  // Si el usuario está logueado Y la acción es 'visit' → flujo propio
+  if (token && action === 'visit') {
+    openVisitModal(selectedProp);
+    return;
+  }
+
+  // Para cualquier otra acción (contact, etc.) o sin token → auth gate existente
+  const titles = {
+    contact: 'Contactá al propietario',
+    visit:   'Agendá una visita',
+  };
+  const subs = {
+    contact: 'Registrate gratis para enviar un mensaje directo al propietario.',
+    visit:   'Registrate para reservar un horario de visita con el agente.',
+  };
+
+  document.getElementById('auth-prompt-title').textContent = titles[action] || 'Para continuar necesitás una cuenta';
+  document.getElementById('auth-prompt-sub').textContent   = subs[action]  || '';
+
+  const propId    = selectedProp?.id || '';
+  const returnUrl = encodeURIComponent(`landing.html?prop=${propId}&action=${action}`);
+  document.getElementById('btn-auth-register').href = `loginregister.html?tab=register&return=${returnUrl}`;
+
+  document.getElementById('modal-auth').classList.add('open');
+}
+
+/* ═══════════════════════════════════════════════════════
+   2. ABRIR MODAL DE VISITA
+   ═══════════════════════════════════════════════════════ */
+function openVisitModal(prop) {
+  if (!prop) return;
+
+  _visitPropId    = prop.id;
+  _visitPropTitle = prop.title || 'Propiedad';
+  _selectedTime   = null;
+
+  // Resetear UI
+  document.getElementById('visit-prop-name').textContent = _visitPropTitle;
+  document.getElementById('visit-date').value    = '';
+  document.getElementById('visit-message').value = '';
+  hideVisitMsg();
+
+  // Fecha mínima = mañana
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('visit-date').min = tomorrow.toISOString().split('T')[0];
+
+  // Deseleccionar chips
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+
+  // Habilitar botón submit
+  const btn = document.getElementById('btn-visit-submit');
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  document.getElementById('modal-visit').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Focus en la fecha
+  setTimeout(() => document.getElementById('visit-date').focus(), 120);
+}
+
+function closeVisitModal() {
+  document.getElementById('modal-visit').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ─── Chips de horario ─── */
+function selectTimeChip(chip, value) {
+  document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  _selectedTime = value;
+}
+
+/* ═══════════════════════════════════════════════════════
+   3. SUBMIT — crea chat y envía propuesta de visita
+   ═══════════════════════════════════════════════════════ */
+async function submitVisitProposal() {
+  const date    = document.getElementById('visit-date').value;
+  const message = document.getElementById('visit-message').value.trim();
+
+  if (!date) {
+    showVisitMsg('Seleccioná una fecha para la visita.', 'error');
+    document.getElementById('visit-date').focus();
+    return;
+  }
+
+  const token = localStorage.getItem('inmo_token');
+  if (!token) {
+    // Sesión expiró mientras tenía el modal abierto
+    closeVisitModal();
+    requireAuth('visit');
+    return;
+  }
+
+  const btn = document.getElementById('btn-visit-submit');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  hideVisitMsg();
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+
+  try {
+    /* ── Paso 1: Iniciar o recuperar conversación (idempotente) ── */
+    const chatRes = await fetch(`${API_CHAT}/api/v1/chats`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ property_id: _visitPropId }),
+    });
+
+    if (!chatRes.ok) {
+      const err = await chatRes.json().catch(() => ({}));
+      showVisitMsg(err.message || `No se pudo iniciar la conversación (${chatRes.status}).`, 'error');
+      return;
+    }
+
+    const chatData  = await chatRes.json();
+    const chatId    = chatData.id || chatData.conversation_id;
+
+    if (!chatId) {
+      showVisitMsg('Respuesta inesperada del servidor de chat.', 'error');
+      return;
+    }
+
+    /* ── Paso 2: Enviar propuesta de visita ── */
+    // Construir datetime combinando fecha + horario seleccionado (o mediodía por defecto)
+    const time           = _selectedTime || '12:00';
+    const proposedDatetime = `${date}T${time}:00`;
+
+    const proposalRes = await fetch(`${API_CHAT}/api/v1/chats/${chatId}/visit-proposals`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        proposed_datetime: proposedDatetime,
+        message: message || null,
+      }),
+    });
+
+    if (!proposalRes.ok) {
+      const err = await proposalRes.json().catch(() => ({}));
+      showVisitMsg(err.message || `Error al enviar la propuesta (${proposalRes.status}).`, 'error');
+      return;
+    }
+
+    /* ── Éxito ── */
+    showVisitMsg('¡Propuesta enviada! El agente confirmará el horario a la brevedad.', 'success');
+
+    // Marcar el botón de visita en el modal de detalle como "enviado"
+    const btnVisit = document.querySelector('#modal-detail .btn-visit');
+    if (btnVisit) {
+      btnVisit.classList.add('sent');
+      btnVisit.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Propuesta enviada`;
+    }
+
+    // Cerrar automáticamente después de 2.2s
+    setTimeout(() => {
+      closeVisitModal();
+    }, 2200);
+
+  } catch (err) {
+    console.error('[visit-proposal]', err);
+    showVisitMsg('No se pudo conectar. Verificá tu conexión e intentá de nuevo.', 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+/* ─── Helpers de mensaje ─── */
+function showVisitMsg(text, type) {
+  const el = document.getElementById('visit-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.className   = `visit-msg ${type} visible`;
+}
+
+function hideVisitMsg() {
+  const el = document.getElementById('visit-msg');
+  if (!el) return;
+  el.className   = 'visit-msg';
+  el.textContent = '';
+}

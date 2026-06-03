@@ -858,3 +858,256 @@ body {
   .modal-detail-actions { flex-direction: column; }
   .modal-detail-body { padding: 20px; }
 }
+
+
+/* ══════════════════════════════════════════
+   MODAL AGENDAR VISITA — Fase 3 Pantalla A
+   Agregar al final de landing.css
+══════════════════════════════════════════ */
+
+/* ── Modal visita ── */
+.modal-visit {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 460px;
+  animation: modalIn 200ms ease;
+  overflow: hidden;
+}
+
+/* Cabecera dorada con nombre de propiedad */
+.modal-visit-header {
+  background: linear-gradient(135deg, var(--ink) 0%, #2A2218 100%);
+  padding: 24px 28px 20px;
+  position: relative;
+}
+
+.modal-visit-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.modal-visit-prop {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--white);
+  line-height: 1.25;
+  max-width: calc(100% - 36px); /* espacio para el botón close */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-visit-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: rgba(255,255,255,0.6);
+  transition: background var(--transition), color var(--transition);
+}
+
+.modal-visit-close:hover {
+  background: rgba(255,255,255,0.18);
+  color: var(--white);
+}
+
+/* Cuerpo del modal */
+.modal-visit-body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Selector de fecha + hora en fila */
+.visit-datetime-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.visit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.visit-field label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-40);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.visit-field input,
+.visit-field select,
+.visit-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--sand-50);
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition), background var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.visit-field input:focus,
+.visit-field select:focus,
+.visit-field textarea:focus {
+  border-color: var(--gold);
+  background: var(--white);
+}
+
+.visit-field select {
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238A857E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+
+.visit-field textarea {
+  resize: none;
+  line-height: 1.5;
+  min-height: 72px;
+}
+
+/* Horarios sugeridos (chips) */
+.visit-time-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.time-chip {
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-family: var(--font-body);
+  color: var(--ink-70);
+  background: var(--white);
+  border: 1px solid var(--sand-200);
+  border-radius: 99px;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+
+.time-chip:hover {
+  border-color: var(--gold);
+  color: var(--ink);
+  background: var(--sand-50);
+}
+
+.time-chip.selected {
+  border-color: var(--gold);
+  background: rgba(201,169,110,0.12);
+  color: var(--gold-dark);
+  font-weight: 500;
+}
+
+/* Mensaje de estado */
+.visit-msg {
+  font-size: 12.5px;
+  border-radius: var(--radius-md);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 300ms ease, padding 300ms ease;
+}
+
+.visit-msg.visible { max-height: 80px; padding: 9px 12px; }
+.visit-msg.error   { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(192,57,43,0.2); }
+.visit-msg.success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(29,122,74,0.2); }
+
+/* Footer del modal */
+.modal-visit-footer {
+  padding: 16px 28px 24px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--sand-100);
+}
+
+.btn-visit-cancel {
+  height: 38px;
+  padding: 0 18px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-40);
+  background: transparent;
+  border: 1px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.btn-visit-cancel:hover { background: var(--sand-50); border-color: var(--sand-300); }
+
+.btn-visit-submit {
+  height: 38px;
+  padding: 0 22px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.btn-visit-submit:hover:not(:disabled) { background: var(--gold-dark); border-color: var(--gold-dark); }
+.btn-visit-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-visit-submit .btn-text { transition: opacity 200ms; }
+.btn-visit-submit .btn-loader {
+  display: none;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(26,24,20,0.25);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+  position: absolute;
+  right: 14px;
+}
+
+.btn-visit-submit.loading .btn-loader { display: block; }
+.btn-visit-submit.loading .btn-text  { opacity: 0.5; }
+
+/* ── Separador "o" en botones del detalle ── */
+.modal-detail-actions .action-divider {
+  display: flex;
+  align-items: center;
+  color: var(--ink-20);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Estado "Propuesta enviada" en el botón de visita ── */
+.btn-visit.sent {
+  background: var(--success-bg);
+  border-color: var(--success);
+  color: var(--success);
+  cursor: default;
+  pointer-events: none;
+}

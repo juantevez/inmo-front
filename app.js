@@ -982,3 +982,90 @@ document.addEventListener('DOMContentLoaded', () => {
   // Iniciar polling de badge para el rol por defecto (agente)
   manageBadgePolling(currentRole);
 });
+
+/* ══════════════════════════════════════════════════════════
+   PATCH app.js — Centro de Mensajes embebido (Fase 3)
+   ══════════════════════════════════════════════════════════
+
+   CAMBIO 1: Agregar ícono iconChat() junto al resto de íconos.
+   CAMBIO 2: Agregar item 'messages' al nav de cada rol relevante.
+   CAMBIO 3: Agregar 'Mensajes' al VIEW_TITLES.
+   CAMBIO 4: Agregar carga de la vista en showView().
+   CAMBIO 5: Agregar función loadMessages() para el iframe.
+
+   ──────────────────────────────────────────────────────── */
+
+/* ─── CAMBIO 1: nuevo ícono ───
+   Agregar junto a iconCalendar() */
+function iconChat() {
+  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+}
+
+
+/* ─── CAMBIO 2: agregar 'messages' al nav de cada rol ───
+
+   En el objeto ROLES, agregar este item en los roles que corresponde:
+
+   Para 'agente':
+     { id: 'messages', label: 'Mensajes', icon: iconChat }
+
+   Para 'propietario':
+     { id: 'messages', label: 'Mensajes', icon: iconChat }
+
+   Para 'buscador':
+     { id: 'messages', label: 'Mis mensajes', icon: iconChat }
+
+   Para 'inquilino':
+     { id: 'messages', label: 'Mensajes', icon: iconChat }
+
+   Para 'admin':
+     { id: 'messages', label: 'Mensajes', icon: iconChat }
+
+   ─────────────────────────────────────────────────────── */
+
+
+/* ─── CAMBIO 3: agregar al VIEW_TITLES ───
+
+   Agregar esta entrada al objeto VIEW_TITLES:
+     messages: 'Centro de mensajes',
+
+   ─────────────────────────────────────────────────────── */
+
+
+/* ─── CAMBIO 4: agregar en showView() ───
+
+   Al final del bloque if de vistas existentes, agregar:
+     if (viewId === 'messages') { loadMessagesView(); }
+
+   ─────────────────────────────────────────────────────── */
+
+
+/* ─── CAMBIO 5: función para cargar la vista de mensajes ───
+   Agregar como función global en app.js */
+
+/**
+ * Carga mensajes.html dentro de un iframe embebido en la vista.
+ * El iframe comparte el localStorage del mismo origen, por lo que
+ * el token y el usuario ya están disponibles sin pasar nada.
+ */
+function loadMessagesView() {
+  const view = document.getElementById('view-messages');
+  if (!view) return;
+
+  // Evitar recargar si ya tiene el iframe
+  if (view.querySelector('iframe')) return;
+
+  view.innerHTML = `
+    <iframe
+      src="mensajes.html"
+      title="Centro de mensajes"
+      style="
+        width: 100%;
+        flex: 1;
+        border: none;
+        border-radius: 0;
+        min-height: 0;
+      "
+      allowfullscreen
+    ></iframe>`;
+}

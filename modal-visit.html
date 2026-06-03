@@ -1,0 +1,75 @@
+<!-- ══════════════════════════════════════════════════════
+     MODAL: Agendar Visita — Fase 3 Pantalla A
+     Insertar ANTES de <script src="landing.js"></script>
+     ══════════════════════════════════════════════════════ -->
+
+<div class="modal-overlay" id="modal-visit" onclick="closeVisitModal()">
+  <div class="modal-visit" onclick="event.stopPropagation()">
+
+    <!-- Cabecera oscura con nombre de propiedad -->
+    <div class="modal-visit-header">
+      <p class="modal-visit-label">Agendar visita</p>
+      <p class="modal-visit-prop" id="visit-prop-name">Propiedad</p>
+      <button class="modal-visit-close" onclick="closeVisitModal()" aria-label="Cerrar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Cuerpo -->
+    <div class="modal-visit-body">
+
+      <!-- Fecha -->
+      <div class="visit-field">
+        <label for="visit-date">Fecha preferida</label>
+        <input type="date" id="visit-date" required />
+      </div>
+
+      <!-- Horarios sugeridos -->
+      <div class="visit-field">
+        <label>Horario</label>
+        <div class="visit-time-chips">
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '09:00')">9:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '10:00')">10:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '11:00')">11:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '14:00')">14:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '15:00')">15:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '16:00')">16:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '17:00')">17:00 hs</button>
+          <button type="button" class="time-chip" onclick="selectTimeChip(this, '18:00')">18:00 hs</button>
+        </div>
+      </div>
+
+      <!-- Mensaje opcional -->
+      <div class="visit-field">
+        <label for="visit-message">
+          Mensaje al agente
+          <span style="font-weight:400;font-style:italic;color:var(--ink-20);margin-left:4px">opcional</span>
+        </label>
+        <textarea
+          id="visit-message"
+          rows="2"
+          placeholder="Ej: Vengo con mi pareja, preferimos la tarde…"
+        ></textarea>
+      </div>
+
+      <!-- Feedback -->
+      <div class="visit-msg" id="visit-msg"></div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-visit-footer">
+      <button type="button" class="btn-visit-cancel" onclick="closeVisitModal()">Cancelar</button>
+      <button
+        type="button"
+        class="btn-visit-submit"
+        id="btn-visit-submit"
+        onclick="submitVisitProposal()"
+      >
+        <span class="btn-text">Confirmar visita</span>
+        <span class="btn-loader" aria-hidden="true"></span>
+      </button>
+    </div>
+
+  </div>
+</div>

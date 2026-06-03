@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mensajes — Inmo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="mensajes.css" />
+</head>
+<body>
+
+<div class="msg-app">
+
+  <!-- ── TOPBAR ── -->
+  <header class="msg-topbar">
+    <!-- Botón back (solo mobile, oculto por defecto) -->
+    <button class="msg-topbar-back" id="btn-back" onclick="goBackToList()" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver
+    </button>
+
+    <!-- Logo -->
+    <a href="landing.html" class="msg-topbar-logo">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect width="32" height="32" rx="4" fill="#C9A96E"/>
+        <path d="M8 22 L16 10 L24 22" stroke="#1A1814" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 22 L12 17 L20 17 L20 22" stroke="#1A1814" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Mensajes</span>
+    </a>
+
+    <!-- Rol del usuario -->
+    <span class="msg-topbar-role" id="topbar-role"></span>
+
+    <div style="flex:1"></div>
+
+    <!-- Volver al dashboard (agentes/propietarios) -->
+    <a href="index.html" class="btn-topbar-dash">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Dashboard</span>
+    </a>
+  </header>
+
+  <!-- ── DOBLE PANEL ── -->
+  <div class="msg-body">
+
+    <!-- Columna izquierda: lista de conversaciones -->
+    <aside class="conv-list-panel" id="conv-list-panel">
+      <div class="conv-list-header">
+        <h2>Conversaciones</h2>
+        <div class="conv-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            id="conv-search-input"
+            placeholder="Buscar por propiedad o contacto..."
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <!-- Lista (se rellena con JS) -->
+      <div class="conv-list" id="conv-list">
+        <!-- Skeleton inicial -->
+        <div class="conv-skeleton">
+          <div class="skel-circle"></div>
+          <div class="skel-lines">
+            <div class="skel-line"></div>
+            <div class="skel-line short"></div>
+          </div>
+        </div>
+        <div class="conv-skeleton">
+          <div class="skel-circle"></div>
+          <div class="skel-lines">
+            <div class="skel-line"></div>
+            <div class="skel-line short"></div>
+          </div>
+        </div>
+        <div class="conv-skeleton">
+          <div class="skel-circle"></div>
+          <div class="skel-lines">
+            <div class="skel-line"></div>
+            <div class="skel-line short"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Columna derecha: hilo de mensajes -->
+    <section class="chat-panel" id="chat-panel">
+
+      <!-- Placeholder cuando no hay conversación seleccionada -->
+      <div class="chat-placeholder" id="chat-placeholder">
+        <div class="chat-placeholder-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3>Tus mensajes</h3>
+        <p>Seleccioná una conversación de la lista para ver el hilo</p>
+      </div>
+
+      <!-- Header del hilo activo (oculto hasta seleccionar) -->
+      <div class="chat-header" id="chat-header" style="display:none">
+        <div class="chat-header-avatar" id="chat-header-avatar">—</div>
+        <div class="chat-header-info">
+          <div class="chat-header-name" id="chat-header-name">—</div>
+          <div class="chat-header-prop" id="chat-header-prop">—</div>
+        </div>
+        <div class="chat-header-status">
+          <div class="chat-status-dot" id="chat-status-dot"></div>
+          <span id="chat-status-text"></span>
+        </div>
+      </div>
+
+      <!-- Zona de mensajes -->
+      <div class="chat-messages" id="chat-messages"></div>
+
+      <!-- Input de mensaje (oculto hasta seleccionar) -->
+      <div class="chat-input-bar" id="chat-input-bar" style="display:none">
+        <div class="chat-input-wrap">
+          <textarea
+            class="chat-input"
+            id="chat-input"
+            rows="1"
+            placeholder="Escribí un mensaje..."
+            maxlength="2000"
+          ></textarea>
+        </div>
+        <button class="btn-send" id="btn-send" onclick="sendMessage()" aria-label="Enviar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+
+    </section>
+  </div>
+
+</div>
+
+<script src="mensajes.js"></script>
+</body>
+</html>

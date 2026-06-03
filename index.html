@@ -274,6 +274,20 @@
       </div>
     </section>
 
+
+    <section class="view" id="view-messages" style="padding:0;overflow:hidden;display:none;flex:1">
+  <!-- El iframe se inyecta dinámicamente por loadMessagesView() en app.js -->
+  <!-- Se usa iframe para que mensajes.js tenga su propio ciclo de vida
+       (polling, timers) sin interferir con app.js del dashboard -->
+</section>
+ 
+<!-- ══════════════════════════════════════════════════════════
+     NOTA: la sección usa display:none como las demás vistas.
+     Cuando el usuario hace click en "Mensajes" del sidebar,
+     showView('messages') la activa con display:flex y llama
+     a loadMessagesView() que inyecta el iframe.
+     ══════════════════════════════════════════════════════════ -->
+     
   </main>
 </div>
 
