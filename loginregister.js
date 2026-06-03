@@ -16,7 +16,7 @@ function switchTab(tab) {
 
 function getReturnUrl() {
   const params = new URLSearchParams(window.location.search);
-  return params.get('return') || 'landing.html';
+  return params.get('return') || 'index.html';
 }
 
 /* ── Login ── */
@@ -61,7 +61,7 @@ async function handleLogin(e) {
     setTimeout(async () => {
       const profile = await fetchProfile(token);
       if (!profile) {
-        const qs = returnUrl !== 'landing.html' ? `?return=${encodeURIComponent(returnUrl)}` : '';
+        const qs = returnUrl !== 'index.html' ? `?return=${encodeURIComponent(returnUrl)}` : '';
         window.location.href = `profile-setup.html${qs}`;
       } else {
         // Guardar datos del perfil en localStorage para uso en el dashboard
@@ -150,7 +150,7 @@ async function fetchProfile(token) {
 
 function dashboardForProfile(profile, returnUrl) {
   // Si hay una URL de retorno explícita (no el default), respetarla siempre
-  if (returnUrl && returnUrl !== 'landing.html') {
+  if (returnUrl && returnUrl !== 'index.html') {
     return decodeURIComponent(returnUrl);
   }
   // COMMERCIAL (inmobiliaria/corredor) o INDIVIDUAL que opera propiedades → dashboard

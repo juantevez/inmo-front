@@ -971,7 +971,7 @@ function logout() {
   localStorage.removeItem('inmo_user');
   localStorage.removeItem('inmo_pending_role');
   localStorage.removeItem('inmo_pending_email');
-  window.location.href = 'landing.html';
+  window.location.href = 'app.html';
 }
 
 /* ── Init ── */
@@ -987,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!token) {
     // Guardar la URL actual para redirigir de vuelta post-login (opcional)
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.replace('landing.html?return=' + returnUrl);
+    window.location.replace('app.html?return=' + returnUrl);
     return; // detener toda ejecución del dashboard
   }
 
@@ -1003,14 +1003,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Token expirado — limpiar storage y redirigir
       localStorage.removeItem('inmo_token');
       localStorage.removeItem('inmo_user');
-      window.location.replace('landing.html?expired=1');
+      window.location.replace('index.html?expired=1');
       return;
     }
   } catch (_) {
     // Token malformado — tratar como no autenticado
     localStorage.removeItem('inmo_token');
     localStorage.removeItem('inmo_user');
-    window.location.replace('landing.html');
+    window.location.replace('index.html');
     return;
   }
 

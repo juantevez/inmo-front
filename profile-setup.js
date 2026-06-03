@@ -12,10 +12,10 @@ const ROLE_TO_PROFILE_TYPE = {
 
 // Roles que tienen acceso al panel interno vs solo landing
 const ROLE_TO_DASHBOARD = {
-  buscador:     'landing.html',
-  inquilino:    'index.html',
-  propietario:  'index.html',
-  inmobiliaria: 'index.html',
+  buscador:     'app.html',
+  inquilino:    'app.html',
+  propietario:  'app.html',
+  inmobiliaria: 'app.html',
 };
 
 /* ── Init ── */
@@ -158,7 +158,7 @@ async function handleProfileSubmit(e) {
 
 function skipSetup() {
   localStorage.removeItem('inmo_pending_role');
-  window.location.href = 'landing.html';
+  window.location.href = 'app.html';
 }
 
 /* ── Helpers ── */

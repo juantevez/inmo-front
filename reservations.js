@@ -23,7 +23,7 @@ function authHeaders() {
 
 function logout() {
   ['inmo_token','inmo_user','inmo_pending_role','inmo_pending_email'].forEach(k => localStorage.removeItem(k));
-  window.location.href = 'landing.html';
+  window.location.href = 'index.html';
 }
 
 /* ─────────────────────────────────────────

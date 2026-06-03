@@ -25,7 +25,7 @@ let selectedProp = null;
     }
     // Token válido → ir al dashboard
     // Usamos replace() para no agregar landing al historial
-    window.location.replace('index.html');
+    window.location.replace('app.html');
   } catch (_) {
     // Token malformado → limpiar y quedarse en landing
     localStorage.removeItem('inmo_token');
@@ -262,7 +262,7 @@ function requireAuth(action) {
   document.getElementById('auth-prompt-sub').textContent   = subs[action] || '';
 
   const propId     = selectedProp?.id || '';
-  const returnUrl  = encodeURIComponent(`landing.html?prop=${propId}&action=${action}`);
+  const returnUrl  = encodeURIComponent(`index.html?prop=${propId}&action=${action}`);
   document.getElementById('btn-auth-register').href = `loginregister.html?tab=register&return=${returnUrl}`;
 
   document.getElementById('modal-auth').classList.add('open');
@@ -367,7 +367,7 @@ function requireAuth(action) {
   document.getElementById('auth-prompt-sub').textContent   = subs[action]  || '';
 
   const propId    = selectedProp?.id || '';
-  const returnUrl = encodeURIComponent(`landing.html?prop=${propId}&action=${action}`);
+  const returnUrl = encodeURIComponent(`index.html?prop=${propId}&action=${action}`);
   document.getElementById('btn-auth-register').href = `loginregister.html?tab=register&return=${returnUrl}`;
 
   document.getElementById('modal-auth').classList.add('open');
