@@ -327,6 +327,76 @@ body {
   position: relative;
 }
 
+/* ── Carrusel en cards ── */
+.prop-img-carousel {
+  height: 180px;
+  background: var(--sand-100);
+  position: relative;
+  overflow: hidden;
+}
+
+.prop-carousel-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prop-carousel-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition);
+  color: var(--ink);
+  z-index: 2;
+}
+
+.prop-carousel-nav:hover { background: var(--white); }
+.prop-carousel-prev { left: 8px; }
+.prop-carousel-next { right: 8px; }
+
+.prop-img-carousel:hover .prop-carousel-nav {
+  opacity: 1;
+}
+
+.prop-carousel-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+
+.prop-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.prop-carousel-dot.active {
+  background: var(--gold);
+  transform: scale(1.2);
+}
+
+.prop-img-placeholder {
+  opacity: 0.2;
+}
+
 .op-badge {
   position: absolute;
   top: 12px; left: 12px;
