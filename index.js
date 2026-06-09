@@ -84,6 +84,100 @@ function renderProperties(props) {
   }
 
   grid.innerHTML = props.map(propCard).join('');
+  
+  // Cargar imágenes para cada propiedad después de renderizar
+  props.forEach(p => loadPropertyCarousel(p.id));
+}
+
+/* ── Carrusel de imágenes en cards ── */
+
+async function loadPropertyCarousel(propertyID) {
+  try {
+    const res = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media`);
+    if (!res.ok) return;
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const images = items.filter(m => m.type === 'IMAGE' || m.type === 'VIDEO');
+    if (images.length === 0) return;
+
+    const carouselEl = document.querySelector(`.prop-img-carousel[data-prop-id="${propertyID}"]`);
+    if (!carouselEl) return;
+
+    carouselEl.dataset.images = JSON.stringify(images.map(img => ({ url: img.url, type: img.type })));
+    
+    const track = carouselEl.querySelector('.prop-carousel-track');
+    const dotsContainer = carouselEl.querySelector('.prop-carousel-dots');
+    const prevBtn = carouselEl.querySelector('.prop-carousel-prev');
+    const nextBtn = carouselEl.querySelector('.prop-carousel-next');
+
+    // Estado del carrusel
+    let currentIndex = 0;
+    let prevHandler = null;
+    let nextHandler = null;
+
+    function updateCarousel() {
+      const currentImg = images[currentIndex];
+      if (!currentImg) return;
+
+      if (currentImg.type === 'VIDEO') {
+        track.innerHTML = `<video class="prop-carousel-img" src="${escHtml(currentImg.url)}" preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>`;
+      } else {
+        track.innerHTML = `<img class="prop-carousel-img" src="${escHtml(currentImg.url)}" alt="" style="width:100%;height:100%;object-fit:cover" loading="lazy" />`;
+      }
+
+      // Actualizar dots
+      dotsContainer.innerHTML = images.map((_, i) => 
+        `<span class="prop-carousel-dot ${i === currentIndex ? 'active' : ''}" data-index="${i}"></span>`
+      ).join('');
+
+      // Mostrar/ocultar flechas según corresponda
+      const showNav = images.length > 1;
+      prevBtn.style.opacity = showNav ? '1' : '0';
+      nextBtn.style.opacity = showNav ? '1' : '0';
+      prevBtn.style.pointerEvents = showNav ? 'auto' : 'none';
+      nextBtn.style.pointerEvents = showNav ? 'auto' : 'none';
+
+      // Agregar eventos a los dots
+      dotsContainer.querySelectorAll('.prop-carousel-dot').forEach(dot => {
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentIndex = parseInt(dot.dataset.index, 10);
+          updateCarousel();
+        });
+      });
+    }
+
+    // Remover listeners previos si existen
+    if (prevHandler) {
+      prevBtn.removeEventListener('click', prevHandler);
+    }
+    if (nextHandler) {
+      nextBtn.removeEventListener('click', nextHandler);
+    }
+
+    // Navegación
+    prevHandler = (e) => {
+      e.stopPropagation();
+      currentIndex = (currentIndex - 1 + images.length) % images.length;
+      updateCarousel();
+    };
+
+    nextHandler = (e) => {
+      e.stopPropagation();
+      currentIndex = (currentIndex + 1) % images.length;
+      updateCarousel();
+    };
+
+    prevBtn.addEventListener('click', prevHandler);
+    nextBtn.addEventListener('click', nextHandler);
+
+    // Inicializar
+    updateCarousel();
+
+  } catch (err) {
+    console.error('[carousel]', err);
+  }
 }
 
 function propCard(p) {
@@ -100,8 +194,17 @@ function propCard(p) {
 
   return `
     <article class="prop-card" onclick='openDetail(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
-      <div class="prop-img">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".2" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <div class="prop-img-carousel" data-prop-id="${p.id}" data-images="">
+        <div class="prop-carousel-track">
+          <svg class="prop-img-placeholder" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".2" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="prop-carousel-nav prop-carousel-prev">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </div>
+        <div class="prop-carousel-nav prop-carousel-next">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="prop-carousel-dots"></div>
         ${op ? `<span class="op-badge">${op}</span>` : ''}
         ${petBadge}
       </div>
