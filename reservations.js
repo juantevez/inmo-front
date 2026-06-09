@@ -3,7 +3,7 @@
 /* ─────────────────────────────────────────
    CONFIG
 ───────────────────────────────────────── */
-const GATEWAY       = 'http://127.0.0.1:8000';
+const GATEWAY       = 'http://localhost:8000';
 const POLL_INTERVAL = 30_000; // 30 segundos
 
 let _pollTimer       = null;

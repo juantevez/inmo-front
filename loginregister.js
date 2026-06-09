@@ -1,6 +1,6 @@
 'use strict';
 
-const API_AUTH = 'http://127.0.0.1:8000';
+const API_AUTH = 'http://localhost:8000';
 
 /* ── Tab switching ── */
 

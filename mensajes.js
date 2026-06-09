@@ -3,7 +3,7 @@
 /* ═══════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════ */
-const GATEWAY      = 'http://127.0.0.1:8000';
+const GATEWAY      = 'http://localhost:8000';
 const POLL_CONV_MS = 15_000;   // lista de conversaciones
 const POLL_MSG_MS  =  5_000;   // mensajes del hilo activo
 
@@ -459,7 +459,7 @@ async function sendMessage() {
     const res = await fetch(`${GATEWAY}/api/v1/chats/${_activeConvId}/messages`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ body: content }),
     });
 
     if (!res.ok) {

@@ -1,6 +1,6 @@
 'use strict';
 
-const API_GATEWAY = 'http://127.0.0.1:8000';
+const API_GATEWAY = 'http://localhost:8000';
 
 // Mapeo de roles del front → profile_type del backend
 const ROLE_TO_PROFILE_TYPE = {

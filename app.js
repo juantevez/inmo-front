@@ -1,7 +1,7 @@
 'use strict';
 
 /* ── API config ── */
-const GATEWAY = 'http://127.0.0.1:8000';
+const GATEWAY = 'http://localhost:8000';
 
 const API = {
   catalog:     GATEWAY,
@@ -971,7 +971,7 @@ function logout() {
   localStorage.removeItem('inmo_user');
   localStorage.removeItem('inmo_pending_role');
   localStorage.removeItem('inmo_pending_email');
-  window.location.href = 'app.html';
+  window.location.href = 'index.html';
 }
 
 /* ── Init ── */
@@ -987,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!token) {
     // Guardar la URL actual para redirigir de vuelta post-login (opcional)
     const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.replace('app.html?return=' + returnUrl);
+    window.location.replace('loginregister.html?return=' + returnUrl);
     return; // detener toda ejecución del dashboard
   }
 
@@ -1020,6 +1020,10 @@ document.addEventListener('DOMContentLoaded', () => {
   buildNav();
   showView('catalog');
   manageBadgePolling(currentRole);
+
+  if (new URLSearchParams(window.location.search).get('publish') === '1') {
+    openPublishModal();
+  }
 });
 
 /* ══════════════════════════════════════════════════════════
