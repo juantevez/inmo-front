@@ -264,6 +264,8 @@ async function openDetail(p) {
   const imgZone = document.getElementById('modal-detail-img');
   imgZone.innerHTML = `<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".15" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
 
+  hideDetailActionMsg();
+
   document.getElementById('modal-detail').classList.add('open');
   document.body.style.overflow = 'hidden';
 
@@ -491,8 +493,9 @@ async function startContactChat(prop) {
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
-      console.error('[contact-chat] error body:', errBody);
-      throw new Error(`HTTP ${res.status}: ${errBody.message || JSON.stringify(errBody)}`);
+      const friendly = friendlyContactError(errBody.message || '');
+      showDetailActionMsg(friendly); 
+      return; 
     }
 
     const data   = await res.json();
@@ -667,4 +670,27 @@ function hideVisitMsg() {
   if (!el) return;
   el.className   = 'visit-msg';
   el.textContent = '';
+
+    function friendlyContactError(serverMsg) { 
+    if (serverMsg.includes('mismo usuario')) {
+      return 'Esta es tu propia propiedad — no podés enviarte un mensaje a vos mismo.'
+    }
+    if (serverMsg.includes('advertiser_id') || serverMsg.includes('obligatorio')) {
+      return 'Faltan datos de la propiedad. Cerrá este modal y volvé a intentarlo.';
+    }
+    return serverMsg || 'No se pudo iniciar la conversación. Intentá de nuevo.';
+  }
+
+  function showDetailActionMsg(text) { 
+    const el = document.getElementById('detail-action-msg');
+    if (!el) return;  
+    el.textContent = text;
+    el.style.display = 'flex'; 
+  }
+
+  function hideDetailActionMsg() { 
+    const el = document.getElementById('detail-action-msg'); 
+    if (el) el.style.display = 'none';
+  } 
+
 }

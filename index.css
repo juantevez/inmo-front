@@ -1181,3 +1181,18 @@ body {
   cursor: default;
   pointer-events: none;
 }
+
+.detail-action-msg {
+  display: flex; 
+  align-items: center;
+  gap: 8px;   
+  margin-top: 16px; 
+  padding: 10px 14px; 
+  border-radius: 8px; 
+  font-size: 13px;  
+  line-height: 1.4; 
+  background: #fef2f2; 
+  color: #b91c1c;  
+  border: 1px solid #fecaca; 
+}   
+  
