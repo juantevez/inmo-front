@@ -414,9 +414,39 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/* ── Navbar auth ── */
+
+function updateNavAuth() {
+  const token = localStorage.getItem('inmo_token');
+  const nav   = document.getElementById('nav-actions');
+  if (!nav) return;
+
+  if (!token) {
+    nav.innerHTML = `
+      <a href="loginregister.html" class="btn-nav-login">Ingresá</a>
+      <a href="loginregister.html?tab=register&return=app.html%3Fpublish%3D1" class="btn-nav-register">Publicar propiedad</a>`;
+    return;
+  }
+
+  const user      = JSON.parse(localStorage.getItem('inmo_user') || '{}');
+  const firstName = user.firstName || user.email?.split('@')[0] || 'Vos';
+
+  nav.innerHTML = `
+    <span class="nav-greeting">Hola, ${escHtml(firstName)}</span>
+    <a href="app.html?publish=1" class="btn-nav-register">Publicar propiedad</a>
+    <button class="btn-nav-logout" onclick="logoutFromLanding()">Salir</button>`;
+}
+
+function logoutFromLanding() {
+  localStorage.removeItem('inmo_token');
+  localStorage.removeItem('inmo_user');
+  updateNavAuth();
+}
+
 /* ── Init ── */
 
 document.addEventListener('DOMContentLoaded', () => {
+  updateNavAuth();
   loadProperties();
 
   document.getElementById('search-zone').addEventListener('keydown', e => {
@@ -753,6 +783,8 @@ function openEditForm() {
   document.getElementById('btn-save-edit').disabled    = false;
   document.getElementById('btn-save-edit').textContent = 'Guardar cambios';
   document.getElementById('detail-edit-section').style.display = '';
+
+  loadEditPhotos(p.id);
 }
 
 function closeEditForm() {
@@ -841,5 +873,170 @@ async function submitEditForm(e) {
     msgEl.textContent   = err.message || 'No se pudo guardar. Intentá de nuevo.';
     msgEl.className     = 'edit-form-msg error';
     msgEl.style.display = 'block';
+  }
+}
+
+/* ── Gestión de fotos en formulario de edición ── */
+
+async function loadEditPhotos(propertyID) {
+  const grid  = document.getElementById('edit-photos-grid');
+  const msgEl = document.getElementById('edit-photos-msg');
+  grid.innerHTML = '<span class="edit-photos-loading">Cargando…</span>';
+  msgEl.style.display = 'none';
+
+  try {
+    const res   = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media`);
+    const items = res.ok ? await res.json() : [];
+    const photos = Array.isArray(items) ? items.filter(m => m.type === 'IMAGE' || m.type === 'VIDEO') : [];
+
+    if (photos.length === 0) {
+      grid.innerHTML = '<span class="edit-photos-empty">Sin fotos aún</span>';
+      return;
+    }
+
+    grid.innerHTML = photos.map(m => `
+      <div class="edit-photo-item" id="ephoto-${escHtml(m.id)}">
+        ${m.type === 'VIDEO'
+          ? `<video class="edit-photo-thumb" src="${escHtml(m.url)}" preload="none"></video>`
+          : `<img class="edit-photo-thumb" src="${escHtml(m.url)}" alt="" loading="lazy">`}
+        <button class="edit-photo-del" type="button" aria-label="Eliminar foto"
+          onclick="deleteEditPhoto('${escHtml(m.id)}', '${escHtml(propertyID)}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`).join('');
+  } catch (_) {
+    grid.innerHTML = '<span class="edit-photos-empty">No se pudieron cargar las fotos</span>';
+  }
+}
+
+async function deleteEditPhoto(mediaID, propertyID) {
+  const token = localStorage.getItem('inmo_token');
+  if (!token) return;
+
+  const item  = document.getElementById(`ephoto-${mediaID}`);
+  const msgEl = document.getElementById('edit-photos-msg');
+  if (item) item.style.opacity = '0.4';
+
+  try {
+    const res = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media/${mediaID}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    if (item) item.remove();
+
+    const grid = document.getElementById('edit-photos-grid');
+    if (grid && !grid.querySelector('.edit-photo-item')) {
+      grid.innerHTML = '<span class="edit-photos-empty">Sin fotos aún</span>';
+    }
+
+    // Recargar la zona de imágenes del modal con las fotos actualizadas
+    loadDetailMedia(propertyID, document.getElementById('modal-detail-img'));
+
+  } catch (err) {
+    if (item) item.style.opacity = '';
+    msgEl.textContent   = err.message || 'No se pudo eliminar la foto.';
+    msgEl.className     = 'edit-photos-msg error';
+    msgEl.style.display = 'block';
+  }
+}
+
+async function handlePhotoSelect(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = '';
+
+  const p     = selectedProp;
+  const token = localStorage.getItem('inmo_token');
+  if (!p || !token) return;
+
+  const msgEl = document.getElementById('edit-photos-msg');
+  msgEl.style.display = 'none';
+
+  for (const file of files) {
+    await uploadOnePhoto(file, p.id, token, msgEl);
+  }
+
+  // Recargar grid y zona de imagen del modal
+  await loadEditPhotos(p.id);
+  loadDetailMedia(p.id, document.getElementById('modal-detail-img'));
+}
+
+async function uploadOnePhoto(file, propertyID, token, msgEl) {
+  const grid = document.getElementById('edit-photos-grid');
+
+  // Placeholder con progreso
+  const placeholderId = `up-${Date.now()}`;
+  const placeholder   = document.createElement('div');
+  placeholder.className = 'edit-photo-item uploading';
+  placeholder.id        = placeholderId;
+  placeholder.innerHTML = `
+    <div class="edit-photo-progress">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span class="edit-photo-progress-name">${escHtml(file.name)}</span>
+    </div>`;
+
+  // Quitar el "Sin fotos" si existía
+  const empty = grid.querySelector('.edit-photos-empty');
+  if (empty) empty.remove();
+  grid.appendChild(placeholder);
+
+  try {
+    // 1. Obtener presigned URL
+    const urlRes = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media/upload-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ filename: file.name, content_type: file.type }),
+    });
+
+    if (!urlRes.ok) {
+      const err = await urlRes.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${urlRes.status}`);
+    }
+
+    const { presigned_url: presignedURL, final_url: finalURL } = await urlRes.json();
+
+    // 2. Subir directamente a S3
+    const uploadRes = await fetch(presignedURL, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+
+    if (!uploadRes.ok) throw new Error('Error al subir el archivo a S3');
+
+    // 3. Confirmar al backend
+    const confirmRes = await fetch(`${API_CATALOG}/api/v1/properties/${propertyID}/media`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        url:        finalURL,
+        type:       file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE',
+        sort_order: 0,
+      }),
+    });
+
+    if (!confirmRes.ok) {
+      const err = await confirmRes.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${confirmRes.status}`);
+    }
+
+  } catch (err) {
+    msgEl.textContent   = `${file.name}: ${err.message || 'Error al subir'}`;
+    msgEl.className     = 'edit-photos-msg error';
+    msgEl.style.display = 'block';
+  } finally {
+    placeholder.remove();
   }
 }

@@ -27,7 +27,7 @@
       <a href="#" class="nav-link" onclick="setSearchTab(document.querySelector('[data-op=RENT]'), 'RENT'); doSearch(); return false;">Alquilar</a>
       <a href="#" class="nav-link" onclick="setSearchTab(document.querySelector('[data-op=TEMP]'), 'TEMP'); doSearch(); return false;">Temporario</a>
     </nav>
-    <div class="nav-actions">
+    <div class="nav-actions" id="nav-actions">
       <a href="loginregister.html" class="btn-nav-login">Ingresá</a>
       <a href="loginregister.html?tab=register&return=app.html%3Fpublish%3D1" class="btn-nav-register">Publicar propiedad</a>
     </div>
@@ -167,6 +167,22 @@
                 <option value="SMALL_ONLY">Solo mascotas chicas/medianas</option>
                 <option value="ALLOWED">Permite mascotas</option>
               </select>
+            </div>
+
+            <!-- Gestión de fotos -->
+            <div class="edit-field full">
+              <div class="edit-photos-header">
+                <span class="edit-label">Fotos</span>
+                <label class="btn-add-photo" for="edit-photo-input">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Agregar foto
+                  <input type="file" id="edit-photo-input" accept="image/*,video/*" multiple style="display:none" onchange="handlePhotoSelect(this)">
+                </label>
+              </div>
+              <div class="edit-photos-grid" id="edit-photos-grid">
+                <!-- llenado por JS -->
+              </div>
+              <div class="edit-photos-msg" id="edit-photos-msg" style="display:none"></div>
             </div>
 
             <!-- Campos exclusivos alquiler temporario -->

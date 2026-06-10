@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check /home/juan/go-code/inmo-front/index.js)"
+    ]
+  }
+}
