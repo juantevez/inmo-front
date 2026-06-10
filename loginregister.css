@@ -326,6 +326,60 @@ body {
 .form-msg.error   { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(192,57,43,0.2); }
 .form-msg.success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(29,122,74,0.2); }
 
+/* ── SSO DIVIDER ── */
+.sso-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--ink-20);
+  font-size: 12px;
+}
+.sso-divider::before,
+.sso-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--sand-200);
+}
+
+/* ── SSO BUTTONS ── */
+.sso-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.btn-sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), opacity var(--transition);
+}
+.btn-sso:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-sso-google {
+  color: var(--ink-70);
+  background: var(--white);
+  border: 1px solid var(--sand-200);
+}
+.btn-sso-google:hover:not(:disabled) { background: var(--sand-50); border-color: var(--sand-300); }
+
+.btn-sso-meta {
+  color: var(--white);
+  background: #1877F2;
+  border: 1px solid #1877F2;
+}
+.btn-sso-meta:hover:not(:disabled) { background: #166FE5; border-color: #166FE5; }
+
 /* ── AUTH SWITCH ── */
 .auth-switch {
   text-align: center;

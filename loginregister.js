@@ -2,6 +2,133 @@
 
 const API_AUTH = 'http://localhost:8000';
 
+// Config SSO cargada desde el backend al inicializar la página
+let _ssoConfig = null;
+
+async function loadSSOConfig() {
+  try {
+    const res = await fetch(`${API_AUTH}/api/v1/auth/sso/config`);
+    if (res.ok) _ssoConfig = await res.json();
+  } catch (_) { /* sin config SSO disponible */ }
+}
+
+/* ── SSO — Google ── */
+
+function loginWithGoogle() {
+  const clientId   = _ssoConfig?.google_client_id;
+  const redirectUri = _ssoConfig?.google_redirect_uri || (window.location.origin + '/loginregister.html');
+  if (!clientId) {
+    showSSOMsg('Google SSO no está configurado en el servidor.');
+    return;
+  }
+  const state = btoa(JSON.stringify({ provider: 'google', return: getReturnUrl() }));
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth' +
+    '?client_id='     + encodeURIComponent(clientId) +
+    '&redirect_uri='  + encodeURIComponent(redirectUri) +
+    '&response_type=code' +
+    '&scope='         + encodeURIComponent('openid email profile') +
+    '&access_type=offline' +
+    '&state='         + encodeURIComponent(state);
+  window.location.href = url;
+}
+
+async function handleGoogleCallback(code, returnUrl) {
+  setSSOLoading(true);
+  try {
+    const res = await fetch(`${API_AUTH}/api/v1/auth/sso/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Error ${res.status} al autenticar con Google`);
+    await handleSSOSuccess(data, returnUrl);
+  } catch (err) {
+    setSSOLoading(false);
+    showSSOMsg(err.message || 'No se pudo iniciar sesión con Google. Intentá de nuevo.');
+  }
+}
+
+/* ── SSO — Meta ── */
+
+// Inicializar Facebook SDK cuando carga (se llama desde fbAsyncInit después de loadSSOConfig)
+function initFacebookSDK() {
+  const appId = _ssoConfig?.meta_app_id;
+  if (!appId || typeof FB === 'undefined') return;
+  FB.init({ appId, cookie: true, xfbml: false, version: 'v19.0' });
+}
+
+window.fbAsyncInit = function () { initFacebookSDK(); };
+
+function loginWithMeta() {
+  if (!_ssoConfig?.meta_app_id) {
+    showSSOMsg('Meta SSO no está configurado en el servidor.');
+    return;
+  }
+  if (typeof FB === 'undefined') {
+    showSSOMsg('El SDK de Meta no terminó de cargar. Recargá la página.');
+    return;
+  }
+  FB.login(async response => {
+    if (response.status !== 'connected' || !response.authResponse?.accessToken) {
+      // El usuario canceló o falló la autorización — no hacer nada
+      return;
+    }
+    setSSOLoading(true);
+    try {
+      const res = await fetch(`${API_AUTH}/api/v1/auth/sso/meta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: response.authResponse.accessToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Error ${res.status} al autenticar con Meta`);
+      await handleSSOSuccess(data, getReturnUrl());
+    } catch (err) {
+      setSSOLoading(false);
+      showSSOMsg(err.message || 'No se pudo iniciar sesión con Meta. Intentá de nuevo.');
+    }
+  }, { scope: 'email' });
+}
+
+/* ── SSO — shared post-login ── */
+
+async function handleSSOSuccess(data, returnUrl) {
+  const token = data.AccessToken;
+  localStorage.setItem('inmo_token', token);
+  localStorage.setItem('inmo_user', JSON.stringify({}));
+
+  const profile = await fetchProfile(token);
+  if (!profile) {
+    const qs = (returnUrl && returnUrl !== 'index.html')
+      ? `?return=${encodeURIComponent(returnUrl)}` : '';
+    window.location.href = `profile-setup.html${qs}`;
+  } else {
+    localStorage.setItem('inmo_user', JSON.stringify({
+      firstName:     profile.first_name,
+      lastName:      profile.last_name,
+      profileType:   profile.profile_type,
+      profileStatus: profile.status,
+    }));
+    window.location.href = dashboardForProfile(profile, returnUrl || 'index.html');
+  }
+}
+
+function showSSOMsg(text) {
+  // Reusar el msg del form activo
+  const activeForm = document.querySelector('.auth-form.active');
+  const msgId = activeForm?.id === 'form-register' ? 'register-msg' : 'login-msg';
+  showMsg(msgId, text, 'error');
+}
+
+function setSSOLoading(loading) {
+  ['btn-sso-google-login', 'btn-sso-google-reg',
+   'btn-sso-meta-login',   'btn-sso-meta-reg'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = loading;
+  });
+}
+
 /* ── Tab switching ── */
 
 function switchTab(tab) {
@@ -175,8 +302,28 @@ function hideMsg(id) {
 
 /* ── Init ── */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSSOConfig();
+  // Con la config ya cargada, inicializar el SDK de Meta si ya está disponible
+  initFacebookSDK();
+
   const params = new URLSearchParams(window.location.search);
+
+  // Callback de Google OAuth: ?code=...&state=...
+  const code      = params.get('code');
+  const stateRaw  = params.get('state');
+  if (code && stateRaw) {
+    try {
+      const state = JSON.parse(atob(stateRaw));
+      if (state.provider === 'google') {
+        // Limpiar params de la URL
+        history.replaceState({}, '', 'loginregister.html');
+        handleGoogleCallback(code, state.return || 'index.html');
+        return;
+      }
+    } catch (_) { /* state no era nuestro, ignorar */ }
+  }
+
   if (params.get('tab') === 'register') {
     switchTab('register');
   } else {

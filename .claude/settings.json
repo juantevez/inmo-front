@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node --check /home/juan/go-code/inmo-front/index.js)"
+      "Bash(node --check /home/juan/go-code/inmo-front/index.js)",
+      "Bash(echo \"EXIT:$?\")"
+    ],
+    "additionalDirectories": [
+      "/home/juan/go-code/inmo-platform/contexts/auth-identity/internal/adapters/httpapi",
+      "/home/juan/go-code/inmo-platform/contexts/auth-identity/cmd/api"
     ]
   }
 }
