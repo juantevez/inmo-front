@@ -7,6 +7,16 @@ let currentPage  = 0;
 let currentOp    = '';
 let selectedProp = null;
 
+function getLoggedUserId() {
+  const token = localStorage.getItem('inmo_token');
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1])).sub || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 
 
 /* ── Search ── */
@@ -227,9 +237,7 @@ function propCard(p) {
 
 /* ── Detail modal ── */
 
-async function openDetail(p) {
-  selectedProp = p;
-
+function renderDetailInfo(p) {
   const rawPrice  = typeof p.price === 'object' ? p.price?.amount : p.price;
   const price     = Number(rawPrice || p.amount || 0).toLocaleString('es-AR');
   const currency  = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
@@ -259,12 +267,24 @@ async function openDetail(p) {
     ${p.description ? `<p class="detail-desc">${escHtml(p.description)}</p>` : ''}
     ${petNote}
   `;
+}
+
+async function openDetail(p) {
+  selectedProp = p;
+
+  renderDetailInfo(p);
 
   // Resetear zona de imagen al placeholder mientras carga
   const imgZone = document.getElementById('modal-detail-img');
   imgZone.innerHTML = `<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".15" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
 
   hideDetailActionMsg();
+  closeEditForm();
+
+  const userId  = getLoggedUserId();
+  const isOwner = userId && String(userId) === String(p.owner_id);
+  document.querySelector('#modal-detail .modal-detail-actions').style.display = isOwner ? 'none' : '';
+  document.getElementById('btn-edit-property').style.display = isOwner ? 'flex' : 'none';
 
   document.getElementById('modal-detail').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -670,27 +690,156 @@ function hideVisitMsg() {
   if (!el) return;
   el.className   = 'visit-msg';
   el.textContent = '';
+}
 
-    function friendlyContactError(serverMsg) { 
-    if (serverMsg.includes('mismo usuario')) {
-      return 'Esta es tu propia propiedad — no podés enviarte un mensaje a vos mismo.'
-    }
-    if (serverMsg.includes('advertiser_id') || serverMsg.includes('obligatorio')) {
-      return 'Faltan datos de la propiedad. Cerrá este modal y volvé a intentarlo.';
-    }
-    return serverMsg || 'No se pudo iniciar la conversación. Intentá de nuevo.';
+function friendlyContactError(serverMsg) {
+  if (serverMsg.includes('mismo usuario')) {
+    return 'Esta es tu propia propiedad — no podés enviarte un mensaje a vos mismo.';
+  }
+  if (serverMsg.includes('advertiser_id') || serverMsg.includes('obligatorio')) {
+    return 'Faltan datos de la propiedad. Cerrá este modal y volvé a intentarlo.';
+  }
+  return serverMsg || 'No se pudo iniciar la conversación. Intentá de nuevo.';
+}
+
+function showDetailActionMsg(text) {
+  const el = document.getElementById('detail-action-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = 'flex';
+}
+
+function hideDetailActionMsg() {
+  const el = document.getElementById('detail-action-msg');
+  if (el) el.style.display = 'none';
+}
+
+/* ── Edición de publicación propia ── */
+
+function openEditForm() {
+  const p = selectedProp;
+  if (!p) return;
+
+  const opType   = p.operation_type || '';
+  const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
+  const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+
+  document.getElementById('edit-title').value       = p.title || '';
+  document.getElementById('edit-description').value = p.description || '';
+  document.getElementById('edit-address').value     = p.address || p.location?.address || '';
+  document.getElementById('edit-price').value       = rawPrice || '';
+  document.getElementById('edit-currency').value    = currency;
+  document.getElementById('edit-pet-policy').value  = p.pet_policy || 'NOT_ALLOWED';
+
+  const tempSection = document.getElementById('edit-temp-fields');
+  if (opType === 'TEMP') {
+    tempSection.style.display = '';
+    document.getElementById('edit-night-price').value      = p.night_price      || '';
+    document.getElementById('edit-cleaning-fee').value     = p.cleaning_fee     || '';
+    document.getElementById('edit-security-deposit').value = p.security_deposit || '';
+    document.getElementById('edit-min-nights').value       = p.min_nights       || '';
+    document.getElementById('edit-max-nights').value       = p.max_nights       || '';
+    document.getElementById('edit-check-in').value         = p.check_in_time    || '';
+    document.getElementById('edit-check-out').value        = p.check_out_time   || '';
+  } else {
+    tempSection.style.display = 'none';
   }
 
-  function showDetailActionMsg(text) { 
-    const el = document.getElementById('detail-action-msg');
-    if (!el) return;  
-    el.textContent = text;
-    el.style.display = 'flex'; 
+  const msgEl = document.getElementById('edit-form-msg');
+  msgEl.style.display = 'none';
+  msgEl.textContent   = '';
+  msgEl.className     = 'edit-form-msg';
+
+  document.getElementById('btn-save-edit').disabled    = false;
+  document.getElementById('btn-save-edit').textContent = 'Guardar cambios';
+  document.getElementById('detail-edit-section').style.display = '';
+}
+
+function closeEditForm() {
+  const sec = document.getElementById('detail-edit-section');
+  if (sec) sec.style.display = 'none';
+}
+
+async function submitEditForm(e) {
+  e.preventDefault();
+  const p     = selectedProp;
+  const token = localStorage.getItem('inmo_token');
+  if (!p || !token) return;
+
+  const btn   = document.getElementById('btn-save-edit');
+  const msgEl = document.getElementById('edit-form-msg');
+
+  btn.disabled    = true;
+  btn.textContent = 'Guardando…';
+  msgEl.style.display = 'none';
+
+  const body = {};
+
+  const title     = document.getElementById('edit-title').value.trim();
+  const desc      = document.getElementById('edit-description').value.trim();
+  const addr      = document.getElementById('edit-address').value.trim();
+  const price     = parseFloat(document.getElementById('edit-price').value);
+  const currency  = document.getElementById('edit-currency').value;
+  const petPolicy = document.getElementById('edit-pet-policy').value;
+
+  if (title)                      body.title       = title;
+  if (desc)                       body.description = desc;
+  if (addr)                       body.address     = addr;
+  if (!isNaN(price) && price > 0) body.price       = price;
+  if (currency)                   body.currency    = currency;
+  if (petPolicy)                  body.pet_policy  = petPolicy;
+
+  if ((p.operation_type || '') === 'TEMP') {
+    const nightPrice  = parseFloat(document.getElementById('edit-night-price').value);
+    const cleaningFee = parseFloat(document.getElementById('edit-cleaning-fee').value);
+    const secDeposit  = parseFloat(document.getElementById('edit-security-deposit').value);
+    const minNights   = parseInt(document.getElementById('edit-min-nights').value, 10);
+    const maxNights   = parseInt(document.getElementById('edit-max-nights').value, 10);
+    const checkIn     = document.getElementById('edit-check-in').value;
+    const checkOut    = document.getElementById('edit-check-out').value;
+
+    if (!isNaN(nightPrice)  && nightPrice  > 0)  body.night_price       = nightPrice;
+    if (!isNaN(cleaningFee) && cleaningFee >= 0)  body.cleaning_fee     = cleaningFee;
+    if (!isNaN(secDeposit)  && secDeposit  >= 0)  body.security_deposit = secDeposit;
+    if (!isNaN(minNights)   && minNights   > 0)   body.min_nights       = minNights;
+    if (!isNaN(maxNights)   && maxNights   > 0)   body.max_nights       = maxNights;
+    if (checkIn)  body.check_in_time  = checkIn;
+    if (checkOut) body.check_out_time = checkOut;
   }
 
-  function hideDetailActionMsg() { 
-    const el = document.getElementById('detail-action-msg'); 
-    if (el) el.style.display = 'none';
-  } 
+  if (Object.keys(body).length === 0) {
+    btn.disabled    = false;
+    btn.textContent = 'Guardar cambios';
+    msgEl.textContent   = 'No hiciste ningún cambio.';
+    msgEl.className     = 'edit-form-msg warning';
+    msgEl.style.display = 'block';
+    return;
+  }
 
+  try {
+    const res = await fetch(`${API_CATALOG}/api/v1/properties/${p.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+
+    Object.assign(selectedProp, body);
+    closeEditForm();
+    renderDetailInfo(selectedProp);
+
+  } catch (err) {
+    btn.disabled    = false;
+    btn.textContent = 'Guardar cambios';
+    msgEl.textContent   = err.message || 'No se pudo guardar. Intentá de nuevo.';
+    msgEl.className     = 'edit-form-msg error';
+    msgEl.style.display = 'block';
+  }
 }

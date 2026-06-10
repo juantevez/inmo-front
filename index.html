@@ -122,6 +122,98 @@
           Agendar visita
         </button>
       </div>
+
+      <!-- Botón editar — solo visible al dueño -->
+      <button class="btn-edit-prop" id="btn-edit-property" style="display:none" onclick="openEditForm()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Editar publicación
+      </button>
+
+      <!-- Formulario de edición inline -->
+      <section id="detail-edit-section" style="display:none">
+        <div class="edit-form-header">
+          <h3 class="edit-form-title">Editar publicación</h3>
+          <button class="edit-form-cancel" type="button" onclick="closeEditForm()">Cancelar</button>
+        </div>
+        <form id="edit-property-form" onsubmit="submitEditForm(event)">
+          <div class="edit-form-grid">
+            <div class="edit-field full">
+              <label class="edit-label" for="edit-title">Título</label>
+              <input class="edit-input" type="text" id="edit-title" maxlength="120">
+            </div>
+            <div class="edit-field full">
+              <label class="edit-label" for="edit-description">Descripción</label>
+              <textarea class="edit-input edit-textarea" id="edit-description" rows="3"></textarea>
+            </div>
+            <div class="edit-field">
+              <label class="edit-label" for="edit-price">Precio</label>
+              <input class="edit-input" type="number" id="edit-price" min="0" step="0.01">
+            </div>
+            <div class="edit-field">
+              <label class="edit-label" for="edit-currency">Moneda</label>
+              <select class="edit-input edit-select" id="edit-currency">
+                <option value="ARS">ARS</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+            <div class="edit-field full">
+              <label class="edit-label" for="edit-address">Dirección</label>
+              <input class="edit-input" type="text" id="edit-address">
+            </div>
+            <div class="edit-field">
+              <label class="edit-label" for="edit-pet-policy">Mascotas</label>
+              <select class="edit-input edit-select" id="edit-pet-policy">
+                <option value="NOT_ALLOWED">No permite mascotas</option>
+                <option value="SMALL_ONLY">Solo mascotas chicas/medianas</option>
+                <option value="ALLOWED">Permite mascotas</option>
+              </select>
+            </div>
+
+            <!-- Campos exclusivos alquiler temporario -->
+            <div class="edit-temp-fields" id="edit-temp-fields" style="display:none">
+              <div class="edit-temp-divider">Alquiler temporario</div>
+              <div class="edit-temp-grid">
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-night-price">Precio por noche</label>
+                  <input class="edit-input" type="number" id="edit-night-price" min="0" step="0.01">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-cleaning-fee">Limpieza</label>
+                  <input class="edit-input" type="number" id="edit-cleaning-fee" min="0" step="0.01">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-security-deposit">Depósito</label>
+                  <input class="edit-input" type="number" id="edit-security-deposit" min="0" step="0.01">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-min-nights">Mín. noches</label>
+                  <input class="edit-input" type="number" id="edit-min-nights" min="1" step="1">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-max-nights">Máx. noches</label>
+                  <input class="edit-input" type="number" id="edit-max-nights" min="1" step="1">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-check-in">Check-in</label>
+                  <input class="edit-input" type="time" id="edit-check-in">
+                </div>
+                <div class="edit-field">
+                  <label class="edit-label" for="edit-check-out">Check-out</label>
+                  <input class="edit-input" type="time" id="edit-check-out">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="edit-form-msg" id="edit-form-msg" style="display:none"></div>
+
+          <div class="edit-form-actions">
+            <button class="btn-save-edit" type="submit" id="btn-save-edit">Guardar cambios</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="detail-action-msg" id="detail-action-msg" style="display:none"></div>
     </div>
   </div>
 </div>
