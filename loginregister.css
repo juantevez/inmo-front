@@ -433,3 +433,74 @@ body {
   .auth-card { max-width: 100%; }
   .form-row  { grid-template-columns: 1fr; }
 }
+
+/* ─────────────────────────────────────────
+   Mejoras al selector de rol en registro
+   Agregar al final de loginregister.css
+───────────────────────────────────────── */
+
+/* Grid de 4 opciones en 2 columnas */
+.user-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Cards con descripción secundaria */
+.type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 12px 10px;
+  border: 1.5px solid var(--sand-200);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition), background var(--transition);
+  user-select: none;
+  cursor: pointer;
+}
+
+.type-card:hover { border-color: var(--sand-300); background: var(--sand-50); }
+
+.type-option input:checked + .type-card {
+  border-color: var(--gold);
+  background: rgba(201,169,110,0.07);
+}
+
+/* Textos dentro de la card */
+.type-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.type-desc {
+  font-size: 11px;
+  color: var(--ink-40);
+  line-height: 1.4;
+}
+
+/* Ícono dentro de la card */
+.type-card svg {
+  color: var(--ink-20);
+  margin-bottom: 4px;
+  transition: color var(--transition);
+}
+
+.type-option input:checked + .type-card svg { color: var(--gold-dark); }
+
+/* Hint de error cuando no se seleccionó rol */
+.role-hint {
+  display: none;
+  font-size: 11.5px;
+  color: var(--danger);
+  margin-top: 4px;
+}
+
+.role-hint.visible { display: block; }
+
+/* Responsive: 1 columna en mobile muy pequeño */
+@media (max-width: 360px) {
+  .user-type-grid { grid-template-columns: 1fr; }
+}
