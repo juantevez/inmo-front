@@ -1027,3 +1027,36 @@ body {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
   .view-toolbar { flex-direction: column; align-items: flex-start; }
 }
+
+.user-info {
+    display: flex;
+    flex-direction: column; /* Esto los alinea uno debajo del otro */
+    justify-content: center; /* Los centra verticalmente si es necesario */
+}
+
+
+/* 1. Estado NORMAL del botón (como se ve siempre) */
+.btn-logout {
+    background-color: #f3f4f6; /* Un gris muy claro (cambia esto por el color que quieras de fondo) */
+    color: #dc2626;            /* El texto y el icono se verán rojos */
+    border: 1px solid #e5e7eb; /* Un borde sutil */
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;                  /* Separa el icono SVG del texto "Salir" */
+    transition: all 0.2s ease; /* Hace que el cambio de color sea suave */
+}
+
+/* El truco mágico para el SVG: hereda el color del texto */
+.btn-logout svg {
+    stroke: currentColor; 
+}
+
+/* 2. Estado HOVER (cuando pasas el cursor por encima) */
+.btn-logout:hover {
+    background-color: #dc2626; /* El fondo se vuelve rojo */
+    color: #ffffff;            /* El texto y el icono cambian a blanco */
+    border-color: #dc2626;
+}

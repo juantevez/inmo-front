@@ -1017,6 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── 3. Init normal del dashboard ──────────────────────
      Solo llegamos acá si el token existe y no expiró.
   ───────────────────────────────────────────────────────── */
+  populateUserChip();
   buildNav();
   showView('catalog');
   manageBadgePolling(currentRole);
@@ -1112,3 +1113,96 @@ function loadMessagesView() {
       allowfullscreen
     ></iframe>`;
 }
+
+/* ─────────────────────────────────────────────────────
+   FIX: poblar el user chip del sidebar con datos reales
+   
+   Reemplazar el bloque DOMContentLoaded en app.js
+   por esta versión que agrega populateUserChip()
+───────────────────────────────────────────────────── */
+
+function populateUserChip() {
+  // 1. Intentar leer desde inmo_user (guardado en login/profile-setup)
+  let user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('inmo_user') || '{}');
+  } catch (_) {}
+
+  // 2. Si falta el nombre, intentar extraer del JWT directamente
+  //    El JWT tiene: sub (user_id), roles, permissions — pero no nombre.
+  //    En ese caso mostramos el email como fallback.
+  let displayName  = '';
+  let displayEmail = '';
+  let initials     = '?';
+
+  if (user.firstName || user.lastName) {
+    displayName  = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    displayEmail = user.email || '';
+    const parts  = displayName.split(' ').filter(Boolean);
+    initials     = parts.map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  } else if (user.email) {
+    // Solo tiene email (login muy reciente, perfil no completado)
+    displayName  = user.email.split('@')[0];
+    displayEmail = user.email;
+    initials     = displayName.slice(0, 2).toUpperCase();
+  } else {
+    // Último fallback: leer email del JWT payload
+    try {
+      const token   = localStorage.getItem('inmo_token') || '';
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      displayEmail  = payload.email || '';
+      displayName   = displayEmail ? displayEmail.split('@')[0] : 'Usuario';
+      initials      = displayName.slice(0, 2).toUpperCase();
+    } catch (_) {
+      displayName = 'Usuario';
+      initials    = 'U';
+    }
+  }
+
+  // 3. Actualizar el DOM
+  const avatarEl = document.querySelector('.sidebar-bottom .user-avatar');
+  const nameEl   = document.querySelector('.sidebar-bottom .user-name');
+  const emailEl  = document.querySelector('.sidebar-bottom .user-email');
+
+  if (avatarEl) avatarEl.textContent = initials;
+  if (nameEl)   nameEl.textContent   = displayName;
+  if (emailEl)  emailEl.textContent  = displayEmail || '—';
+}
+
+/* ── Init (reemplazar el DOMContentLoaded actual en app.js) ── */
+document.addEventListener('DOMContentLoaded', () => {
+
+  const token = localStorage.getItem('inmo_token');
+  if (!token) {
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.replace('loginregister.html?return=' + returnUrl);
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const nowSec  = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < nowSec) {
+      localStorage.removeItem('inmo_token');
+      localStorage.removeItem('inmo_user');
+      window.location.replace('index.html?expired=1');
+      return;
+    }
+  } catch (_) {
+    localStorage.removeItem('inmo_token');
+    localStorage.removeItem('inmo_user');
+    window.location.replace('index.html');
+    return;
+  }
+
+  // ← NUEVO: poblar el user chip con datos reales
+  populateUserChip();
+
+  buildNav();
+  showView('catalog');
+  manageBadgePolling(currentRole);
+
+  if (new URLSearchParams(window.location.search).get('publish') === '1') {
+    openPublishModal();
+  }
+});
