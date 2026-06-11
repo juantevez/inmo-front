@@ -6,14 +6,194 @@
   <title>Inmo — Ingresá o creá tu cuenta</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="loginregister.css" />
+
+  <!-- ═══════════════════════════════════════════════════
+       ESTILOS EXCLUSIVOS DEL BLOQUE CAD
+       Prefijo .cad-* — sin colisión con loginregister.css
+  ════════════════════════════════════════════════════ -->
+  <style>
+
+    /* ── Panel izquierdo: flex-column para que el plano
+       ocupe el espacio sobrante bajo el texto ──────── */
+    .auth-panel-left {
+      display: flex;
+      flex-direction: column;
+      /* height:100vh y overflow:hidden vienen de loginregister.css */
+    }
+    .auth-panel-left .auth-logo    { flex-shrink: 0; }
+    .auth-panel-left .auth-branding {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    /* Texto compacto en laptop */
+    .auth-panel-left .auth-brand-title {
+      font-size: clamp(17px, 1.9vw, 38px);
+      margin-bottom: 6px;
+      line-height: 1.15;
+    }
+    .auth-panel-left .auth-brand-sub {
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    /* Features ocultas cuando la altura es ajustada (laptop 16:9) */
+    @media (max-height: 820px) {
+      .auth-panel-left .auth-features { display: none !important; }
+      .auth-panel-left .auth-brand-sub { margin-bottom: 0; }
+    }
+    @media (min-height: 821px) {
+      .auth-panel-left .auth-features { margin-bottom: 16px; }
+    }
+
+    /* ── .cad-block: ocupa TODO el alto restante ── */
+    .cad-block {
+      flex: 1;
+      min-height: 0;          /* sin esto flex no encoge el hijo */
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      padding-top: 10px;
+      /* margen negativo lateral para que el plano llegue al borde */
+      margin-left:  -52px;
+      margin-right: -52px;
+      width: calc(100% + 104px);
+    }
+
+    /* Grilla de fondo */
+    .cad-block::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(201,169,110,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(201,169,110,0.045) 1px, transparent 1px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* HUD superior */
+    .cad-hud-strip {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 10px 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(201,169,110,0.32);
+      letter-spacing: 0.04em;
+      user-select: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Cursor crosshair */
+    .cad-cursor {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0.38;
+      transition: top 1.4s ease, left 1.4s ease;
+      z-index: 3;
+    }
+
+    /* Perspectiva 3D — ocupa el alto flexible */
+    .cad-scene {
+      perspective: 1200px;
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      z-index: 1;
+    }
+
+    /* El "libro" — 100% del contenedor */
+    .cad-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+    }
+
+    /* Caras: llenan el contenedor y centran el SVG */
+    .cad-face {
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cad-face-back {
+      position: absolute;
+      inset: 0;
+      transform: rotateY(180deg);
+    }
+
+    /* SVG: ocupa el ancho y respeta el aspect-ratio sin desbordar */
+    .cad-scene svg {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      display: block;
+      overflow: visible;
+    }
+
+    /* Etiqueta de fase */
+    .cad-phase-label {
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(201,169,110,0.26);
+      text-align: right;
+      padding: 3px 10px 6px;
+      letter-spacing: 0.05em;
+      user-select: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Elementos SVG internos ── */
+    .cad-fill-room {
+      fill: rgba(201,169,110,0.05);
+      stroke: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    .cad-dim {
+      fill: none;
+      stroke: rgba(201,169,110,0.28);
+      stroke-width: 0.8;
+      stroke-dasharray: 4 4;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .cad-txt {
+      font-family: 'JetBrains Mono', monospace;
+      fill: rgba(201,169,110,0.28);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .cad-accent-txt {
+      font-family: 'JetBrains Mono', monospace;
+      fill: rgba(201,169,110,0.5);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+  </style>
 </head>
 <body>
 
 <div class="auth-layout">
 
-  <!-- ── LEFT: Branding ── -->
+  <!-- ── LEFT: Branding + CAD ── -->
   <div class="auth-panel-left">
     <a href="index.html" class="auth-logo">
       <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -54,17 +234,277 @@
           <span>Gestioná contratos y pagos desde el panel</span>
         </li>
       </ul>
-    </div>
-  </div>
 
-  <!-- ── RIGHT: Forms ── -->
+      <!-- ════════════════════════════════════════
+           BLOQUE CAD — animación del plano 2D
+      ═════════════════════════════════════════ -->
+      <div class="cad-block">
+
+        <!-- HUD superior -->
+        <div class="cad-hud-strip">
+          <span>PLANO N° A-01 &nbsp;·&nbsp; ESC. 1:50</span>
+          <span id="cad-phase-hud">FASE: —</span>
+        </div>
+
+        <!-- Cursor crosshair -->
+        <div class="cad-cursor" id="cadCursor" style="top:40%;left:40%;">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <line x1="11" y1="0"  x2="11" y2="22" stroke="#C9A96E" stroke-width="0.7"/>
+            <line x1="0"  y1="11" x2="22" y2="11" stroke="#C9A96E" stroke-width="0.7"/>
+            <circle cx="11" cy="11" r="4" stroke="#C9A96E" stroke-width="0.7" fill="none"/>
+          </svg>
+        </div>
+
+        <!-- Flip container -->
+        <div class="cad-scene">
+          <div class="cad-wrap" id="cadWrap">
+
+            <!-- CARA FRONTAL: plano que se dibuja/borra -->
+            <div class="cad-face cad-face-front">
+              <svg id="cadSvg" viewBox="0 0 580 420" xmlns="http://www.w3.org/2000/svg" style="opacity:0">
+
+                <!-- Rellenos -->
+                <polygon class="cad-fill-room" id="fill-living"     points="200,20 430,20 430,200 200,200"/>
+                <polygon class="cad-fill-room" id="fill-cocina"     points="60,20 200,20 200,145 60,145"/>
+                <polygon class="cad-fill-room" id="fill-lavadero"   points="20,20 60,20 60,145 20,145"/>
+                <polygon class="cad-fill-room" id="fill-bano-social" points="20,145 100,145 100,200 20,200"/>
+                <polygon class="cad-fill-room" id="fill-hall"       points="100,145 200,145 200,200 100,200"/>
+                <polygon class="cad-fill-room" id="fill-dorm2"      points="20,200 200,200 200,330 20,330"/>
+                <polygon class="cad-fill-room" id="fill-dorm1"      points="200,200 430,200 430,350 310,350 310,330 200,330"/>
+                <polygon class="cad-fill-room" id="fill-suite"      points="310,330 430,330 430,350 310,350"/>
+                <polygon class="cad-fill-room" id="fill-balcon"     points="430,20 520,20 520,200 430,200"/>
+
+                <!-- ── FASE 1: Perímetro ── -->
+                <path id="p-perimeter" fill="none" stroke="#C9A96E" stroke-width="2.5" stroke-linejoin="round"
+                  d="M 20,20 L 520,20 L 520,200 L 430,200 L 430,350 L 310,350 L 310,330 L 20,330 Z"/>
+
+                <!-- ── FASE 2: Paredes interiores ── -->
+                <line id="p-w-lav"      fill="none" stroke="#C9A96E" stroke-width="2" x1="60"  y1="20"  x2="60"  y2="145"/>
+                <line id="p-w-coc"      fill="none" stroke="#C9A96E" stroke-width="2" x1="200" y1="20"  x2="200" y2="330"/>
+                <line id="p-w-hall-h"   fill="none" stroke="#C9A96E" stroke-width="2" x1="20"  y1="145" x2="200" y2="145"/>
+                <line id="p-w-bsoc-v"   fill="none" stroke="#C9A96E" stroke-width="2" x1="100" y1="145" x2="100" y2="200"/>
+                <line id="p-w-div-h"    fill="none" stroke="#C9A96E" stroke-width="2" x1="20"  y1="200" x2="430" y2="200"/>
+                <line id="p-w-dorms-v"  fill="none" stroke="#C9A96E" stroke-width="2" x1="200" y1="200" x2="200" y2="330"/>
+                <line id="p-w-suite-h"  fill="none" stroke="#C9A96E" stroke-width="2" x1="310" y1="330" x2="430" y2="330"/>
+                <line id="p-w-balcon-v" fill="none" stroke="#C9A96E" stroke-width="2" x1="430" y1="20"  x2="430" y2="350"/>
+
+                <!-- ── FASE 3: Aberturas ── -->
+                <g id="p-vent-living" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="240" y1="20" x2="390" y2="20"/>
+                  <line x1="240" y1="15" x2="240" y2="20"/><line x1="390" y1="15" x2="390" y2="20"/>
+                  <line x1="240" y1="15" x2="390" y2="15"/><line x1="315" y1="15" x2="315" y2="20"/>
+                </g>
+                <g id="p-vent-cocina" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="80"  y1="20" x2="155" y2="20"/>
+                  <line x1="80"  y1="15" x2="80"  y2="20"/><line x1="155" y1="15" x2="155" y2="20"/>
+                  <line x1="80"  y1="15" x2="155" y2="15"/>
+                </g>
+                <g id="p-vent-dorm1" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="430" y1="245" x2="430" y2="305"/>
+                  <line x1="435" y1="245" x2="430" y2="245"/><line x1="435" y1="305" x2="430" y2="305"/>
+                  <line x1="435" y1="245" x2="435" y2="305"/>
+                </g>
+                <g id="p-vent-dorm2" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="20"  y1="235" x2="20"  y2="295"/>
+                  <line x1="15"  y1="235" x2="20"  y2="235"/><line x1="15" y1="295" x2="20" y2="295"/>
+                  <line x1="15"  y1="235" x2="15"  y2="295"/>
+                </g>
+                <g id="p-door-main" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="100" y1="200" x2="135" y2="200"/>
+                  <path d="M 135,200 A 35,35 0 0 0 100,165"/>
+                </g>
+                <g id="p-door-cocina" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="200" y1="145" x2="200" y2="177"/>
+                  <path d="M 200,145 A 32,32 0 0 1 168,177"/>
+                </g>
+                <g id="p-door-bsocial" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="100" y1="172" x2="100" y2="195"/>
+                  <path d="M 100,172 A 23,23 0 0 0 77,195"/>
+                </g>
+                <g id="p-door-dorm2" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="20" y1="200" x2="20" y2="232"/>
+                  <path d="M 20,200 A 32,32 0 0 1 52,232"/>
+                </g>
+                <g id="p-door-dorm1" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="200" y1="228" x2="200" y2="260"/>
+                  <path d="M 200,228 A 32,32 0 0 0 232,260"/>
+                </g>
+                <g id="p-door-suite" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="310" y1="312" x2="310" y2="330"/>
+                  <path d="M 310,312 A 18,18 0 0 0 292,330"/>
+                </g>
+                <g id="p-door-balcon" fill="none" stroke="#C9A96E" stroke-width="1">
+                  <line x1="430" y1="68"  x2="430" y2="148"/>
+                  <line x1="436" y1="68"  x2="436" y2="148"/>
+                  <line x1="430" y1="108" x2="436" y2="108"/>
+                </g>
+
+                <!-- ── FASE 4: Mobiliario ── -->
+                <g id="p-mob-sofa" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="215" y="32"  width="110" height="28" rx="2"/>
+                  <rect x="215" y="32"  width="110" height="9"  rx="2"/>
+                  <rect x="215" y="32"  width="11"  height="28" rx="2"/>
+                  <rect x="314" y="32"  width="11"  height="28" rx="2"/>
+                  <rect x="320" y="32"  width="28"  height="70" rx="2"/>
+                  <rect x="320" y="32"  width="9"   height="70" rx="2"/>
+                  <rect x="320" y="32"  width="28"  height="10" rx="2"/>
+                  <rect x="320" y="92"  width="28"  height="10" rx="2"/>
+                  <rect x="232" y="68"  width="55"  height="32" rx="2"/>
+                </g>
+                <g id="p-mob-mesa" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="215" y="138" width="82"  height="48" rx="2"/>
+                  <rect x="222" y="131" width="16"  height="7"  rx="1"/>
+                  <rect x="246" y="131" width="16"  height="7"  rx="1"/>
+                  <rect x="268" y="131" width="16"  height="7"  rx="1"/>
+                  <rect x="222" y="186" width="16"  height="7"  rx="1"/>
+                  <rect x="246" y="186" width="16"  height="7"  rx="1"/>
+                  <rect x="268" y="186" width="16"  height="7"  rx="1"/>
+                  <rect x="207" y="145" width="7"   height="14" rx="1"/>
+                  <rect x="207" y="165" width="7"   height="14" rx="1"/>
+                  <rect x="297" y="145" width="7"   height="14" rx="1"/>
+                  <rect x="297" y="165" width="7"   height="14" rx="1"/>
+                </g>
+                <g id="p-mob-cocina" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="65"  y="26"  width="118" height="16" rx="1"/>
+                  <circle cx="80"  cy="34" r="4"/><circle cx="93"  cy="34" r="4"/>
+                  <circle cx="106" cy="34" r="4"/><circle cx="119" cy="34" r="4"/>
+                  <rect x="175" y="26"  width="16"  height="108" rx="1"/>
+                  <rect x="177" y="62"  width="12"  height="18"  rx="1"/>
+                  <circle cx="183" cy="71" r="2.5"/>
+                  <rect x="65"  y="116" width="24"  height="24"  rx="1"/>
+                  <line x1="65" y1="128" x2="89" y2="128"/>
+                </g>
+                <g id="p-mob-lavadero" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="26" y="26" width="22" height="22" rx="2"/>
+                  <circle cx="37" cy="37" r="7"/><circle cx="37" cy="37" r="4"/>
+                  <rect x="26" y="52" width="22" height="22" rx="2"/>
+                  <circle cx="37" cy="63" r="7"/><circle cx="37" cy="63" r="4"/>
+                </g>
+                <g id="p-mob-bano-social" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="25"  y="150" width="18" height="12" rx="2"/>
+                  <ellipse cx="34" cy="170" rx="10" ry="8"/>
+                  <rect x="55"  y="150" width="15" height="14" rx="2"/>
+                  <circle cx="63" cy="155" r="2.5"/>
+                  <rect x="25"  y="180" width="25" height="16" rx="2"/>
+                </g>
+                <g id="p-mob-dorm2" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="42"  y="225" width="72"  height="62" rx="2"/>
+                  <line x1="42" y1="248" x2="114"  y2="248"/>
+                  <rect x="44"  y="227" width="14"  height="16" rx="1"/>
+                  <rect x="100" y="227" width="14"  height="16" rx="1"/>
+                  <rect x="26"  y="232" width="12"  height="12" rx="1"/>
+                  <circle cx="32" cy="238" r="2.5"/>
+                  <rect x="116" y="232" width="12"  height="12" rx="1"/>
+                  <circle cx="122" cy="238" r="2.5"/>
+                  <rect x="26"  y="300" width="90"  height="20" rx="1"/>
+                  <line x1="71" y1="300" x2="71"   y2="320"/>
+                  <line x1="49" y1="300" x2="49"   y2="320"/>
+                  <line x1="95" y1="300" x2="95"   y2="320"/>
+                </g>
+                <g id="p-mob-dorm1" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="222" y="215" width="92"  height="72" rx="2"/>
+                  <line x1="222" y1="242" x2="314"  y2="242"/>
+                  <rect x="224"  y="217" width="18"  height="20" rx="1"/>
+                  <rect x="296"  y="217" width="18"  height="20" rx="1"/>
+                  <rect x="206"  y="222" width="12"  height="12" rx="1"/>
+                  <circle cx="212" cy="228" r="2.5"/>
+                  <rect x="316"  y="222" width="12"  height="12" rx="1"/>
+                  <circle cx="322" cy="228" r="2.5"/>
+                  <rect x="222"  y="207" width="152" height="7"  rx="1"/>
+                  <line x1="272" y1="207" x2="272"  y2="214"/>
+                  <line x1="322" y1="207" x2="322"  y2="214"/>
+                  <line x1="350" y1="207" x2="350"  y2="214"/>
+                  <rect x="370"  y="222" width="38"  height="26" rx="1"/>
+                  <rect x="404"  y="224" width="3"   height="22" rx="1"/>
+                </g>
+                <g id="p-mob-suite" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <rect x="315" y="333" width="48"  height="12" rx="2"/>
+                  <ellipse cx="339" cy="339" rx="17" ry="4"/>
+                  <rect x="373" y="333" width="12"  height="9"  rx="2"/>
+                  <ellipse cx="379" cy="344" rx="7"  ry="5"/>
+                  <rect x="315" y="313" width="34"  height="12" rx="2"/>
+                  <line x1="332" y1="313" x2="332"  y2="325"/>
+                  <circle cx="322" cy="319" r="2.5"/>
+                  <circle cx="343" cy="319" r="2.5"/>
+                </g>
+                <g id="p-mob-balcon" fill="none" stroke="#C9A96E" stroke-width="0.8">
+                  <circle cx="475" cy="98" r="18"/>
+                  <rect x="465" y="73"  width="18" height="10" rx="2"/>
+                  <rect x="465" y="114" width="18" height="10" rx="2"/>
+                  <rect x="447" y="89"  width="10" height="16" rx="2"/>
+                  <rect x="493" y="89"  width="10" height="16" rx="2"/>
+                </g>
+
+                <!-- ── FASE 5: Cotas ── -->
+                <line class="cad-dim" id="dim-w1"    x1="20"  y1="6"    x2="520" y2="6"/>
+                <line class="cad-dim" id="dim-w2"    x1="20"  y1="3"    x2="20"  y2="9"/>
+                <line class="cad-dim" id="dim-w3"    x1="520" y1="3"    x2="520" y2="9"/>
+                <text class="cad-txt" id="dim-w-txt"  x="270" y="5"    text-anchor="middle" font-size="6">12.60 m</text>
+                <line class="cad-dim" id="dim-h1"    x1="538" y1="20"   x2="538" y2="350"/>
+                <line class="cad-dim" id="dim-h2"    x1="534" y1="20"   x2="542" y2="20"/>
+                <line class="cad-dim" id="dim-h3"    x1="534" y1="350"  x2="542" y2="350"/>
+                <text class="cad-txt" id="dim-h-txt"  x="547" y="188"  text-anchor="middle" font-size="6" transform="rotate(90 547 188)">9.00 m</text>
+                <line class="cad-dim" id="dim-mv1"   x1="430" y1="363"  x2="520" y2="363"/>
+                <line class="cad-dim" id="dim-mv2"   x1="430" y1="360"  x2="430" y2="366"/>
+                <line class="cad-dim" id="dim-mv3"   x1="520" y1="360"  x2="520" y2="366"/>
+                <text class="cad-txt" id="dim-mv-txt" x="475" y="372"  text-anchor="middle" font-size="6">2.40 m</text>
+
+                <!-- Etiquetas -->
+                <text class="cad-accent-txt" id="lbl-living"   x="325" y="118" text-anchor="middle" font-size="6.5">LIVING / COMEDOR</text>
+                <text class="cad-accent-txt" id="lbl-cocina"   x="127" y="92"  text-anchor="middle" font-size="6.5">COCINA</text>
+                <text class="cad-accent-txt" id="lbl-lavadero" x="40"  y="95"  text-anchor="middle" font-size="5.5">LAV.</text>
+                <text class="cad-accent-txt" id="lbl-bsocial"  x="60"  y="175" text-anchor="middle" font-size="5.5">BAÑO</text>
+                <text class="cad-accent-txt" id="lbl-hall"     x="148" y="175" text-anchor="middle" font-size="5.5">HALL</text>
+                <text class="cad-accent-txt" id="lbl-dorm2"    x="110" y="270" text-anchor="middle" font-size="6.5">DORMITORIO 2</text>
+                <text class="cad-accent-txt" id="lbl-dorm1"    x="308" y="278" text-anchor="middle" font-size="6.5">DORM. PRINCIPAL</text>
+                <text class="cad-accent-txt" id="lbl-suite"    x="362" y="343" text-anchor="middle" font-size="5.5">EN SUITE</text>
+                <text class="cad-accent-txt" id="lbl-balcon"   x="475" y="168" text-anchor="middle" font-size="6.5">BALCÓN</text>
+
+                <!-- Norte -->
+                <g id="g-norte" opacity="0">
+                  <circle cx="505" cy="390" r="15" stroke="#C9A96E" stroke-width="0.8" fill="none"/>
+                  <text x="505" y="380" text-anchor="middle" font-size="7" fill="#C9A96E"
+                    font-family="JetBrains Mono,monospace" font-weight="500">N</text>
+                  <line x1="505" y1="381" x2="505" y2="402" stroke="#C9A96E" stroke-width="0.8"/>
+                  <polygon points="505,381 501,392 505,388 509,392" fill="#C9A96E"/>
+                </g>
+
+              </svg>
+            </div><!-- .cad-face-front -->
+
+            <!-- CARA TRASERA (se ve durante el flip) -->
+            <div class="cad-face cad-face-back">
+              <svg viewBox="0 0 580 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block;">
+                <rect x="8" y="8" width="564" height="404"
+                  fill="none" stroke="#C9A96E" stroke-width="0.7" stroke-dasharray="5 4" opacity="0.2"/>
+                <line x1="290" y1="168" x2="290" y2="252" stroke="#C9A96E" stroke-width="0.5" opacity="0.15"/>
+                <line x1="248" y1="210" x2="332" y2="210" stroke="#C9A96E" stroke-width="0.5" opacity="0.15"/>
+                <circle cx="290" cy="210" r="26" fill="none" stroke="#C9A96E" stroke-width="0.5" opacity="0.12"/>
+                <text x="290" y="213" text-anchor="middle" font-family="JetBrains Mono,monospace"
+                  font-size="7" fill="#C9A96E" opacity="0.28">PLANO A-01</text>
+              </svg>
+            </div>
+
+          </div><!-- .cad-wrap -->
+        </div><!-- .cad-scene -->
+
+        <!-- Fase actual -->
+        <div class="cad-phase-label" id="cad-phase-bottom">INICIANDO…</div>
+
+      </div><!-- .cad-block -->
+
+    </div><!-- .auth-branding -->
+  </div><!-- .auth-panel-left -->
+
+
+  <!-- ── RIGHT: Forms (sin cambios) ── -->
   <div class="auth-panel-right">
     <div class="auth-card">
 
       <!-- Tabs -->
       <div class="auth-tabs" role="tablist">
-        <button class="auth-tab active" id="tab-login" role="tab" aria-selected="true" onclick="switchTab('login')">Iniciar sesión</button>
-        <button class="auth-tab" id="tab-register" role="tab" aria-selected="false" onclick="switchTab('register')">Crear cuenta</button>
+        <button class="auth-tab active" id="tab-login"    role="tab" aria-selected="true"  onclick="switchTab('login')">Iniciar sesión</button>
+        <button class="auth-tab"        id="tab-register" role="tab" aria-selected="false" onclick="switchTab('register')">Crear cuenta</button>
       </div>
 
       <!-- LOGIN -->
@@ -88,11 +528,10 @@
           <span class="btn-text">Ingresar</span>
           <span class="btn-loader" aria-hidden="true"></span>
         </button>
-
         <div class="sso-divider"><span>o continuá con</span></div>
         <div class="sso-buttons">
           <button type="button" class="btn-sso btn-sso-google" id="btn-sso-google-login" onclick="loginWithGoogle()">
-            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
             Google
           </button>
           <button type="button" class="btn-sso btn-sso-meta" id="btn-sso-meta-login" onclick="loginWithMeta()">
@@ -100,7 +539,6 @@
             Meta
           </button>
         </div>
-
         <p class="auth-switch">
           ¿No tenés cuenta?
           <button type="button" class="link-btn" onclick="switchTab('register')">Registrate gratis</button>
@@ -108,9 +546,7 @@
       </form>
 
       <!-- REGISTER -->
-<!-- REGISTER — reemplazar el bloque <form id="form-register"> en loginregister.html -->
       <form id="form-register" class="auth-form" onsubmit="handleRegister(event)" novalidate>
-
         <div class="field-group">
           <label for="reg-email">Email</label>
           <div class="input-wrap">
@@ -118,7 +554,6 @@
             <input type="email" id="reg-email" placeholder="tu@email.com" autocomplete="email" required />
           </div>
         </div>
-
         <div class="field-group">
           <label for="reg-password">Contraseña</label>
           <div class="input-wrap">
@@ -126,61 +561,49 @@
             <input type="password" id="reg-password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" required minlength="8" />
           </div>
         </div>
-
-        <!-- Selector de rol — 4 opciones mapeadas a los roles del backend -->
         <div class="field-group">
           <label>¿Cómo vas a usar Inmo?</label>
           <div class="user-type-grid">
-
             <label class="type-option">
               <input type="radio" name="user-type" value="buyer" />
               <div class="type-card">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 <span class="type-label">Busco propiedad</span>
-                <span class="type-desc">Quiero comprar o explorar el mercado</span>
+                <span class="type-desc">Quiero ponerme en contacto para visitar propiedades</span>
               </div>
             </label>
-
             <label class="type-option">
               <input type="radio" name="user-type" value="renter" />
               <div class="type-card">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <span class="type-label">Inquilino</span>
-                <span class="type-desc">Busco alquilar y firmar contrato</span>
+                <span class="type-desc">Cargar comprobantes de transferencias y servicios pagos</span>
               </div>
             </label>
-
             <label class="type-option">
               <input type="radio" name="user-type" value="owner" />
               <div class="type-card">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 <span class="type-label">Propietario</span>
                 <span class="type-desc">Tengo propiedades para publicar</span>
               </div>
             </label>
-
             <label class="type-option">
               <input type="radio" name="user-type" value="provider" />
               <div class="type-card">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                 <span class="type-label">Proveedor técnico</span>
                 <span class="type-desc">Plomero, electricista u otro oficio</span>
               </div>
             </label>
-
           </div>
-          <!-- Hint que aparece si el usuario intenta enviar sin seleccionar rol -->
-          <span class="role-hint" id="role-hint" style="display:none;font-size:12px;color:var(--danger);margin-top:4px;">
-            Seleccioná tu tipo de cuenta para continuar
-          </span>
+          <span class="role-hint" id="role-hint">Seleccioná tu tipo de cuenta para continuar</span>
         </div>
-
         <div class="form-msg" id="register-msg" role="alert"></div>
         <button type="submit" class="btn-auth-submit" id="btn-register">
           <span class="btn-text">Crear cuenta gratis</span>
           <span class="btn-loader" aria-hidden="true"></span>
         </button>
-
         <div class="sso-divider"><span>o registrate con</span></div>
         <div class="sso-buttons">
           <button type="button" class="btn-sso btn-sso-google" id="btn-sso-google-reg" onclick="loginWithGoogle()">
@@ -192,22 +615,331 @@
             Meta
           </button>
         </div>
-
         <p class="auth-switch">
           ¿Ya tenés cuenta?
           <button type="button" class="link-btn" onclick="switchTab('login')">Ingresá</button>
         </p>
       </form>
 
-    </div>
+    </div><!-- .auth-card -->
 
     <a href="index.html" class="back-to-landing">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
       Volver a propiedades
     </a>
-  </div>
-</div>
+  </div><!-- .auth-panel-right -->
 
+</div><!-- .auth-layout -->
+
+<!-- ═══════════════════════════════════════════════════
+     MOTOR DE ANIMACIÓN CAD
+     Self-contained — no interfiere con loginregister.js
+════════════════════════════════════════════════════ -->
+<script>
+(function() {
+'use strict';
+
+/* ── Longitudes hardcodeadas (inmune a WebKit/opacity) ── */
+var LENS = {
+  'p-perimeter':1760,
+  'p-w-lav':130,'p-w-coc':330,'p-w-hall-h':180,
+  'p-w-bsoc-v':60,'p-w-div-h':420,'p-w-dorms-v':140,
+  'p-w-suite-h':120,'p-w-balcon-v':350,
+  'p-vent-living':470,'p-vent-cocina':310,
+  'p-vent-dorm1':220,'p-vent-dorm2':220,
+  'p-door-main':380,'p-door-cocina':320,
+  'p-door-bsocial':270,'p-door-dorm2':320,
+  'p-door-dorm1':320,'p-door-suite':180,'p-door-balcon':240,
+  'p-mob-sofa':1100,'p-mob-mesa':1300,
+  'p-mob-cocina':820,'p-mob-lavadero':560,
+  'p-mob-bano-social':450,'p-mob-dorm2':1050,
+  'p-mob-dorm1':1350,'p-mob-suite':650,'p-mob-balcon':480,
+};
+var DEFAULT_LEN = 1800;
+
+function lenOf(id) { return LENS[id] || DEFAULT_LEN; }
+
+function hideEl(el, id) {
+  if (!el) return;
+  var len = lenOf(id);
+  var nodes = el.tagName.toLowerCase() === 'g'
+    ? el.querySelectorAll('line,rect,circle,ellipse,path,polyline,polygon')
+    : [el];
+  nodes.forEach(function(n) {
+    n.style.transition = 'none';
+    n.setAttribute('stroke-dasharray',  len);
+    n.setAttribute('stroke-dashoffset', len);
+  });
+}
+
+function animateEl(id, dur) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var len = lenOf(id);
+  var nodes = el.tagName.toLowerCase() === 'g'
+    ? el.querySelectorAll('line,rect,circle,ellipse,path,polyline,polygon')
+    : [el];
+  nodes.forEach(function(n) {
+    n.style.transition = 'none';
+    n.setAttribute('stroke-dasharray',  len);
+    n.setAttribute('stroke-dashoffset', len);
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        n.style.transition = 'stroke-dashoffset ' + dur + 'ms ease';
+        n.setAttribute('stroke-dashoffset', '0');
+      });
+    });
+  });
+}
+
+function eraseEl(id, dur) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var len = lenOf(id);
+  var nodes = el.tagName.toLowerCase() === 'g'
+    ? el.querySelectorAll('line,rect,circle,ellipse,path,polyline,polygon')
+    : [el];
+  nodes.forEach(function(n) {
+    n.setAttribute('stroke-dasharray',  len);
+    n.setAttribute('stroke-dashoffset', '0');
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        n.style.transition = 'stroke-dashoffset ' + dur + 'ms ease';
+        n.setAttribute('stroke-dashoffset', len);
+      });
+    });
+  });
+}
+
+function fadein(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.transition = 'none';
+  el.style.opacity = '0';
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      el.style.transition = 'opacity 0.7s ease';
+      el.style.opacity = '1';
+    });
+  });
+}
+
+function fadeout(id, dur) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      el.style.transition = 'opacity ' + (dur || 500) + 'ms ease';
+      el.style.opacity = '0';
+    });
+  });
+}
+
+/* ── Fases ── */
+var phases = {
+  perimeter: [{ id:'p-perimeter', dur:2000 }],
+  divisions: [
+    {id:'p-w-lav',dur:480},{id:'p-w-coc',dur:650},{id:'p-w-hall-h',dur:520},
+    {id:'p-w-bsoc-v',dur:360},{id:'p-w-div-h',dur:780},{id:'p-w-dorms-v',dur:460},
+    {id:'p-w-suite-h',dur:380},{id:'p-w-balcon-v',dur:640},
+  ],
+  openings: [
+    {id:'p-vent-living',dur:360},{id:'p-vent-cocina',dur:280},
+    {id:'p-vent-dorm1',dur:260},{id:'p-vent-dorm2',dur:260},
+    {id:'p-door-main',dur:420},{id:'p-door-cocina',dur:360},
+    {id:'p-door-bsocial',dur:320},{id:'p-door-dorm2',dur:360},
+    {id:'p-door-dorm1',dur:360},{id:'p-door-suite',dur:260},{id:'p-door-balcon',dur:260},
+  ],
+  furniture: [
+    {id:'p-mob-sofa',dur:620},{id:'p-mob-mesa',dur:680},
+    {id:'p-mob-cocina',dur:640},{id:'p-mob-lavadero',dur:480},
+    {id:'p-mob-bano-social',dur:440},{id:'p-mob-dorm2',dur:660},
+    {id:'p-mob-dorm1',dur:740},{id:'p-mob-suite',dur:480},{id:'p-mob-balcon',dur:380},
+  ],
+  dims:   ['dim-w1','dim-w2','dim-w3','dim-h1','dim-h2','dim-h3','dim-mv1','dim-mv2','dim-mv3','dim-w-txt','dim-h-txt','dim-mv-txt'],
+  labels: ['lbl-living','lbl-cocina','lbl-lavadero','lbl-bsocial','lbl-hall','lbl-dorm2','lbl-dorm1','lbl-suite','lbl-balcon'],
+  fills:  ['fill-living','fill-cocina','fill-lavadero','fill-bano-social','fill-hall','fill-dorm2','fill-dorm1','fill-suite','fill-balcon'],
+  norte:  'g-norte',
+};
+
+var SEQ = ['perimeter','divisions','openings','furniture','dims','labels','fills','norte'];
+
+var cadTimers = [];
+var hudPhase  = document.getElementById('cad-phase-hud');
+var hudBottom = document.getElementById('cad-phase-bottom');
+
+var phaseNames = {
+  perimeter:'PERÍMETRO', divisions:'MUROS INT.', openings:'ABERTURAS',
+  furniture:'MOBILIARIO', dims:'COTAS', labels:'ETIQUETAS',
+  fills:'MATERIALES', norte:'NORTE',
+};
+
+function setPhaseLabel(txt) {
+  if (hudPhase)  hudPhase.textContent  = txt;
+  if (hudBottom) hudBottom.textContent = txt;
+}
+
+/* ── Reset ── */
+var ALL_STROKE = [
+  'p-perimeter',
+  'p-w-lav','p-w-coc','p-w-hall-h','p-w-bsoc-v','p-w-div-h','p-w-dorms-v','p-w-suite-h','p-w-balcon-v',
+  'p-vent-living','p-vent-cocina','p-vent-dorm1','p-vent-dorm2',
+  'p-door-main','p-door-cocina','p-door-bsocial','p-door-dorm2','p-door-dorm1','p-door-suite','p-door-balcon',
+  'p-mob-sofa','p-mob-mesa','p-mob-cocina','p-mob-lavadero','p-mob-bano-social',
+  'p-mob-dorm2','p-mob-dorm1','p-mob-suite','p-mob-balcon',
+];
+
+function resetCad() {
+  cadTimers.forEach(clearTimeout);
+  cadTimers = [];
+  ALL_STROKE.forEach(function(id) { hideEl(document.getElementById(id), id); });
+  phases.fills.concat(phases.dims).concat(phases.labels).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.style.transition = 'none'; el.style.opacity = '0'; }
+  });
+  var norte = document.getElementById('g-norte');
+  if (norte) { norte.style.transition = 'none'; norte.style.opacity = '0'; }
+}
+
+/* ── Calcular duración total de dibujo ── */
+function calcDrawDur() {
+  var t = 350;
+  SEQ.forEach(function(ph) {
+    var d = phases[ph];
+    if (ph === 'dims')   t += phases.dims.length   * 55  + 350;
+    else if (ph === 'labels') t += phases.labels.length * 110 + 350;
+    else if (ph === 'fills')  t += phases.fills.length  * 90  + 350;
+    else if (ph === 'norte')  t += 550;
+    else if (Array.isArray(d)) {
+      d.forEach(function(item) { t += Math.round(item.dur * 0.52); });
+      t += 300;
+    }
+  });
+  return t;
+}
+
+/* ── Borrado (inverso) ── */
+function startErase(onDone) {
+  var EDUR = 260, EGAP = 80;
+  var t = 500;
+  SEQ.slice().reverse().forEach(function(ph) {
+    var d = phases[ph];
+    cadTimers.push(setTimeout(function() { setPhaseLabel('FASE: BORRANDO…'); }, t));
+    if (ph === 'norte') {
+      cadTimers.push(setTimeout(function() { fadeout('g-norte', 380); }, t)); t += 480;
+    } else if (ph === 'fills') {
+      phases.fills.slice().reverse().forEach(function(id,i) {
+        cadTimers.push(setTimeout(function() { fadeout(id, 320); }, t + i*55));
+      });
+      t += phases.fills.length * 55 + 350;
+    } else if (ph === 'labels') {
+      phases.labels.slice().reverse().forEach(function(id,i) {
+        cadTimers.push(setTimeout(function() { fadeout(id, 280); }, t + i*70));
+      });
+      t += phases.labels.length * 70 + 280;
+    } else if (ph === 'dims') {
+      phases.dims.slice().reverse().forEach(function(id,i) {
+        cadTimers.push(setTimeout(function() { fadeout(id, 230); }, t + i*45));
+      });
+      t += phases.dims.length * 45 + 280;
+    } else if (Array.isArray(d)) {
+      d.slice().reverse().forEach(function(item) {
+        cadTimers.push(setTimeout(function() { eraseEl(item.id, EDUR); }, t));
+        t += EGAP;
+      });
+      t += EDUR + 180;
+    }
+  });
+  cadTimers.push(setTimeout(onDone, t + 350));
+}
+
+/* ── Flip ── */
+function flipPage(onDone) {
+  var wrap = document.getElementById('cadWrap');
+  wrap.style.transition = 'transform 700ms cubic-bezier(0.4,0,0.2,1)';
+  wrap.style.transform  = 'rotateY(-180deg)';
+  cadTimers.push(setTimeout(onDone, 780));
+}
+
+function flipBack(onDone) {
+  var wrap = document.getElementById('cadWrap');
+  wrap.style.transition = 'transform 700ms cubic-bezier(0.4,0,0.2,1)';
+  wrap.style.transform  = 'rotateY(0deg)';
+  cadTimers.push(setTimeout(function() { if (onDone) onDone(); }, 780));
+}
+
+/* ── Secuencia de dibujo ── */
+function drawSequence() {
+  var t = 350;
+  SEQ.forEach(function(ph) {
+    var d = phases[ph];
+    cadTimers.push(setTimeout(function() {
+      setPhaseLabel('FASE: ' + (phaseNames[ph] || ph.toUpperCase()));
+    }, t));
+    if (ph === 'dims') {
+      phases.dims.forEach(function(id,i) { cadTimers.push(setTimeout(function() { fadein(id); }, t + i*55)); });
+      t += phases.dims.length * 55 + 350;
+    } else if (ph === 'labels') {
+      phases.labels.forEach(function(id,i) { cadTimers.push(setTimeout(function() { fadein(id); }, t + i*110)); });
+      t += phases.labels.length * 110 + 350;
+    } else if (ph === 'fills') {
+      phases.fills.forEach(function(id,i) { cadTimers.push(setTimeout(function() { fadein(id); }, t + i*90)); });
+      t += phases.fills.length * 90 + 350;
+    } else if (ph === 'norte') {
+      cadTimers.push(setTimeout(function() { fadein('g-norte'); }, t)); t += 550;
+    } else if (Array.isArray(d)) {
+      d.forEach(function(item) {
+        cadTimers.push(setTimeout(function() { animateEl(item.id, item.dur); }, t));
+        t += Math.round(item.dur * 0.52);
+      });
+      t += 300;
+    }
+  });
+
+  /* Al terminar: flip → resetear → flip vuelta → redibujar */
+  cadTimers.push(setTimeout(function() {
+    flipPage(function() {
+      resetCad();
+      cadTimers.push(setTimeout(function() {
+        flipBack(function() {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() { drawSequence(); });
+          });
+        });
+      }, 550));
+    });
+  }, calcDrawDur()));
+}
+
+/* ── Cursor CAD ── */
+var cursorPos = [
+  {top:'28%',left:'32%'},{top:'52%',left:'58%'},
+  {top:'42%',left:'38%'},{top:'62%',left:'55%'},
+  {top:'33%',left:'62%'},{top:'48%',left:'28%'},
+];
+var curIdx = 0;
+function moveCursor() {
+  var c = document.getElementById('cadCursor');
+  if (!c) return;
+  var p = cursorPos[curIdx % cursorPos.length];
+  c.style.top = p.top; c.style.left = p.left;
+  curIdx++;
+}
+moveCursor();
+setInterval(moveCursor, 2600);
+
+/* ── Init ── */
+var svg = document.getElementById('cadSvg');
+resetCad();
+svg.style.opacity = '1';
+requestAnimationFrame(function() {
+  requestAnimationFrame(function() { drawSequence(); });
+});
+
+})(); /* end IIFE */
+</script>
+
+<!-- JS del proyecto (sin modificaciones) -->
 <script src="loginregister.js"></script>
 <script async defer crossorigin="anonymous" src="https://connect.facebook.net/es_LA/sdk.js"></script>
 </body>

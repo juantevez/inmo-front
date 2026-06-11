@@ -240,6 +240,15 @@ async function loadProperties() {
   if (minPrice)  params.set('min_price', minPrice);
   if (maxPrice)  params.set('max_price', maxPrice);
 
+  if (currentRole === 'propietario') {
+  const { roles } = getJWTClaims(); // ya existe esta función
+  try {
+    const token   = localStorage.getItem('inmo_token') || '';
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.sub) params.set('owner_id', payload.sub);
+  } catch (_) {}
+}
+
   try {
     const res  = await fetch(`${API.catalog}/api/v1/properties?${params}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1204,5 +1213,269 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (new URLSearchParams(window.location.search).get('publish') === '1') {
     openPublishModal();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   PATCH RBAC — app.js
+   Reemplazar/agregar estas secciones en el app.js existente.
+   Los comentarios indican qué reemplaza a qué.
+═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────
+   1. HELPER: leer roles y permisos del JWT
+   Agregar junto a los otros helpers (cerca de authHeaders)
+───────────────────────────────────────────────────────────── */
+
+/**
+ * Extrae roles y permisos del JWT sin verificar firma.
+ * Retorna { roles: string[], permissions: string[] }
+ * Ejemplo: { roles: ['INQUILINO'], permissions: ['maintenance:create', ...] }
+ */
+function getJWTClaims() {
+  try {
+    const token = localStorage.getItem('inmo_token') || '';
+    if (!token) return { roles: [], permissions: [] };
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      roles:       Array.isArray(payload.roles)       ? payload.roles       : [],
+      permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
+    };
+  } catch (_) {
+    return { roles: [], permissions: [] };
+  }
+}
+
+/**
+ * Mapea el rol del backend (PROPIETARIO, INQUILINO, etc.)
+ * al rol del dashboard (propietario, inquilino, etc.)
+ */
+function backendRoleToDashboard(backendRole) {
+  const map = {
+    PROPIETARIO: 'propietario',
+    INQUILINO:   'inquilino',
+    AGENTE:      'agente',
+    PROVEEDOR:   'proveedor',
+    INTERESADO:  'buscador',
+    ADMIN_INMO:  'admin',
+    ROOT:        'admin',
+  };
+  return map[backendRole] || 'buscador';
+}
+
+/**
+ * Retorna el conjunto de roles del dashboard que el usuario
+ * PUEDE ver en el role switcher, según sus roles JWT.
+ *
+ * Reglas:
+ * - PROPIETARIO → solo ve 'propietario'
+ * - INQUILINO   → solo ve 'inquilino'
+ * - PROVEEDOR   → solo ve 'proveedor'
+ * - INTERESADO  → solo ve 'buscador'
+ * - AGENTE      → ve 'agente', 'propietario', 'buscador'
+ * - ADMIN_INMO / ROOT → ve todo
+ */
+function getAllowedDashboardRoles(backendRoles) {
+  const isAdmin    = backendRoles.some(r => ['ADMIN_INMO', 'ROOT'].includes(r));
+  const isAgente   = backendRoles.includes('AGENTE');
+
+  if (isAdmin)  return ['agente', 'propietario', 'buscador', 'inquilino', 'proveedor', 'admin'];
+  if (isAgente) return ['agente', 'propietario', 'buscador'];
+
+  // Para el resto, cada rol mapea a exactamente una vista
+  return backendRoles
+    .map(backendRoleToDashboard)
+    .filter((v, i, arr) => arr.indexOf(v) === i); // unique
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   2. REEMPLAZAR la función buildNav completa
+───────────────────────────────────────────────────────────── */
+
+function buildNav() {
+  const nav   = document.getElementById('sidebar-nav');
+  const items = ROLES[currentRole]?.nav || [];
+  const { permissions } = getJWTClaims();
+
+  nav.innerHTML = items.map(item => {
+    if (item.href) {
+      const badgeHtml = item.badge === 'res'
+        ? `<span class="nav-badge nav-badge-res" id="nav-badge-res" style="display:none;
+            margin-left:auto;background:#C0392B;color:#fff;font-size:10px;font-weight:600;
+            min-width:17px;height:17px;align-items:center;justify-content:center;
+            border-radius:99px;padding:0 4px;"></span>`
+        : '';
+      return `
+        <a class="nav-item" href="${item.href}" style="text-decoration:none">
+          ${item.icon()}
+          ${item.label}
+          ${badgeHtml}
+        </a>`;
+    }
+
+    const badgeHtml = item.badge === 'admin'
+      ? `<span class="nav-badge">${item.badge}</span>`
+      : '';
+    return `
+      <button
+        class="nav-item ${item.id === currentView ? 'active' : ''}"
+        onclick="showView('${item.id}')"
+      >
+        ${item.icon()}
+        ${item.label}
+        ${badgeHtml}
+      </button>`;
+  }).join('');
+
+  // Mostrar/ocultar botón "Publicar propiedad" según permiso
+  updatePublishButton(permissions);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   3. NUEVA función: controlar visibilidad del botón Publicar
+───────────────────────────────────────────────────────────── */
+
+function updatePublishButton(permissions) {
+  const btn = document.querySelector('.btn-primary-sm[onclick="openPublishModal()"]');
+  if (!btn) return;
+
+  const canPublish = permissions.includes('property:create');
+  btn.style.display = canPublish ? '' : 'none';
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   4. REEMPLAZAR la función switchRole completa
+───────────────────────────────────────────────────────────── */
+
+function switchRole(role, btn) {
+  currentRole = role;
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  buildNav();
+
+  const firstItem = ROLES[role]?.nav[0];
+  if (!firstItem) return;
+
+  if (firstItem.href) {
+    window.location.href = firstItem.href;
+    return;
+  }
+
+  showView(firstItem.id);
+  manageBadgePolling(role);
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   5. NUEVA función: construir el role switcher filtrado por JWT
+   Reemplaza el HTML estático del sidebar en app.html
+───────────────────────────────────────────────────────────── */
+
+function buildRoleSwitcher() {
+  const { roles: backendRoles } = getJWTClaims();
+  const allowed = getAllowedDashboardRoles(backendRoles);
+
+  // Todos los roles posibles con sus labels e íconos
+  const ALL_ROLES = [
+    { id: 'agente',      label: 'Agente',         icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` },
+    { id: 'propietario', label: 'Propietario',     icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>` },
+    { id: 'buscador',    label: 'Buscador',        icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>` },
+    { id: 'inquilino',   label: 'Inquilino',       icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>` },
+    { id: 'proveedor',   label: 'Proveedor',       icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>` },
+    { id: 'admin',       label: 'Administrador',   icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
+  ];
+
+  const roleList = document.getElementById('role-list');
+  if (!roleList) return;
+
+  // Filtrar solo los roles permitidos
+  const visibleRoles = ALL_ROLES.filter(r => allowed.includes(r.id));
+
+  // Si solo hay un rol, ocultar el switcher completo (no tiene sentido)
+  const switcher = document.querySelector('.role-switcher');
+  if (switcher) {
+    switcher.style.display = visibleRoles.length <= 1 ? 'none' : '';
+  }
+
+  roleList.innerHTML = visibleRoles.map(r => `
+    <button
+      class="role-btn ${r.id === currentRole ? 'active' : ''}"
+      data-role="${r.id}"
+      onclick="switchRole('${r.id}', this)"
+    >
+      <span class="role-icon">${r.icon}</span>
+      ${r.label}
+    </button>
+  `).join('');
+}
+
+
+/* ─────────────────────────────────────────────────────────────
+   6. REEMPLAZAR el bloque DOMContentLoaded completo
+   (el último que existe en app.js — hay dos, quedarse con este)
+───────────────────────────────────────────────────────────── */
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* ── Guard de autenticación ── */
+  const token = localStorage.getItem('inmo_token');
+  if (!token) {
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.replace('loginregister.html?return=' + returnUrl);
+    return;
+  }
+
+  /* ── Verificación de expiración del JWT ── */
+  let payload;
+  try {
+    payload = JSON.parse(atob(token.split('.')[1]));
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < nowSec) {
+      localStorage.removeItem('inmo_token');
+      localStorage.removeItem('inmo_user');
+      window.location.replace('loginregister.html?expired=1');
+      return;
+    }
+  } catch (_) {
+    localStorage.removeItem('inmo_token');
+    localStorage.removeItem('inmo_user');
+    window.location.replace('loginregister.html');
+    return;
+  }
+
+  /* ── Determinar rol inicial desde el JWT ── */
+  const { roles: backendRoles, permissions } = getJWTClaims();
+  const primaryBackendRole = backendRoles[0] || 'INTERESADO';
+  const dashboardRole      = backendRoleToDashboard(primaryBackendRole);
+
+  // Setear rol actual antes de buildNav/buildRoleSwitcher
+  currentRole = dashboardRole;
+
+  /* ── Init UI ── */
+  populateUserChip();
+  buildRoleSwitcher();   // ← construye el switcher filtrado
+  buildNav();            // ← construye nav del rol actual (ya oculta btn publicar si aplica)
+
+  /* ── Vista inicial según rol ── */
+  const firstNav = ROLES[dashboardRole]?.nav[0];
+  if (firstNav && !firstNav.href) {
+    showView(firstNav.id);
+  } else if (firstNav?.href) {
+    // rol cuya primera acción es ir a otra página (no aplica en el dashboard normal)
+    showView('catalog');
+  } else {
+    showView('catalog');
+  }
+
+  manageBadgePolling(dashboardRole);
+
+  /* ── Deep link: abrir modal de publicación si viene con ?publish=1 ── */
+  if (new URLSearchParams(window.location.search).get('publish') === '1') {
+    if (permissions.includes('property:create')) {
+      openPublishModal();
+    }
   }
 });
