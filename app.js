@@ -393,26 +393,44 @@ async function openDetail(p) {
       ${amenitiesHtml}
     </div>`;
 
-  const footer = document.getElementById('detail-footer');
-  if (p.state === 'AVAILABLE') {
-    if (isTemp) {
-      footer.innerHTML = `
-        <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
-        <button class="btn-primary-sm" onclick="openReservationModal()">
-          <span class="btn-text">Solicitar reserva</span>
-          <span class="btn-loader"></span>
-        </button>`;
-    } else {
-      footer.innerHTML = `
-        <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
-        <button class="btn-primary-sm" onclick="reserveProperty('${p.id}')">
-          <span class="btn-text">Reservar</span>
-          <span class="btn-loader"></span>
-        </button>`;
-    }
+// ── ¿El usuario logueado es el dueño? ──
+const token = localStorage.getItem('inmo_token') || '';
+let loggedUserId = null;
+try { loggedUserId = JSON.parse(atob(token.split('.')[1])).sub || null; } catch (_) {}
+
+const isOwner = loggedUserId && String(loggedUserId) === String(p.owner_id || p.ownerId || '');
+
+const footer = document.getElementById('detail-footer');
+
+if (isOwner) {
+  footer.innerHTML = `
+    <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
+    <button class="btn-primary-sm" onclick="openEditPropertyModal('${p.id}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editar publicación
+    </button>
+    <button class="btn-primary-sm" style="background:var(--danger);border-color:var(--danger)" onclick="deleteProperty('${p.id}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Eliminar
+    </button>`;
+
+} else if (p.state === 'AVAILABLE') {
+  if (isTemp) {
+    footer.innerHTML = `
+      <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
+      <button class="btn-primary-sm" onclick="openReservationModal()">
+        <span class="btn-text">Solicitar reserva</span><span class="btn-loader"></span>
+      </button>`;
   } else {
-    footer.innerHTML = `<button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>`;
+    footer.innerHTML = `
+      <button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>
+      <button class="btn-primary-sm" onclick="reserveProperty('${p.id}')">
+        <span class="btn-text">Reservar</span><span class="btn-loader"></span>
+      </button>`;
   }
+} else {
+  footer.innerHTML = `<button class="btn-ghost" onclick="closeModal('modal-detail')">Cerrar</button>`;
+}
 
   openModal('modal-detail');
   loadPropertyMedia(p.id);
@@ -462,6 +480,92 @@ async function loadPropertyMedia(propertyID) {
     }
   } catch (err) {
     console.error('[media load]', err);
+  }
+}
+
+function openEditPropertyModal(id) {
+  closeModal('modal-detail');
+  const p = _detailProperty;
+  if (!p) return;
+
+  document.getElementById('pub-title').value      = p.title || '';
+  document.getElementById('pub-desc').value       = p.description || '';
+  document.getElementById('pub-operation').value  = p.operation_type || 'SALE';
+  document.getElementById('pub-price').value      = (typeof p.price === 'object' ? p.price?.amount : p.price) || '';
+  document.getElementById('pub-currency').value   = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+  document.getElementById('pub-address').value    = p.address || p.location?.address || '';
+  document.getElementById('pub-pet-policy').value = p.pet_policy || 'NOT_ALLOWED';
+
+  toggleTempSection(p.operation_type || 'SALE');
+
+  document.querySelector('#modal-publish .modal-header h2').textContent = 'Editar publicación';
+  document.getElementById('btn-publish-submit').querySelector('.btn-text').textContent = 'Guardar cambios';
+  document.getElementById('form-publish').onsubmit = (e) => submitEditProperty(e, p.id);
+
+  openModal('modal-publish');
+}
+
+async function submitEditProperty(e, propId) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-publish-submit');
+  btn.classList.add('loading'); btn.disabled = true;
+  hideFormMsg('publish-msg');
+
+  const opType = document.getElementById('pub-operation').value;
+  const body = {
+    title:          document.getElementById('pub-title').value.trim(),
+    description:    document.getElementById('pub-desc').value.trim(),
+    operation_type: opType,
+    pet_policy:     document.getElementById('pub-pet-policy').value,
+    price:          parseFloat(document.getElementById('pub-price').value),
+    currency:       document.getElementById('pub-currency').value,
+    address:        document.getElementById('pub-address').value.trim(),
+  };
+
+  if (opType === 'TEMP') {
+    body.night_price      = parseFloat(document.getElementById('pub-night-price').value) || 0;
+    body.cleaning_fee     = parseFloat(document.getElementById('pub-cleaning-fee').value) || 0;
+    body.security_deposit = parseFloat(document.getElementById('pub-deposit').value) || 0;
+    body.min_nights       = parseInt(document.getElementById('pub-min-nights').value) || 1;
+    body.max_nights       = parseInt(document.getElementById('pub-max-nights').value) || 90;
+    body.check_in_time    = document.getElementById('pub-checkin-time').value || '14:00';
+    body.check_out_time   = document.getElementById('pub-checkout-time').value || '10:00';
+  }
+
+  try {
+    const res = await fetch(`${API.catalog}/api/v1/properties/${propId}`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showFormMsg('publish-msg', err.message || `Error ${res.status}`, 'error');
+      return;
+    }
+    showFormMsg('publish-msg', '¡Publicación actualizada!', 'success');
+    // Restaurar modo "crear"
+    document.querySelector('#modal-publish .modal-header h2').textContent = 'Publicar propiedad';
+    document.getElementById('btn-publish-submit').querySelector('.btn-text').textContent = 'Publicar';
+    document.getElementById('form-publish').onsubmit = submitProperty;
+    setTimeout(() => { closeModal('modal-publish'); loadProperties(); }, 1200);
+  } catch (err) {
+    showFormMsg('publish-msg', 'No se pudo conectar al servidor.', 'error');
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+async function deleteProperty(id) {
+  if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+  try {
+    const res = await fetch(`${API.catalog}/api/v1/properties/${id}`, {
+      method: 'DELETE', headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    closeModal('modal-detail');
+    loadProperties();
+  } catch (err) {
+    console.error('[delete]', err);
+    alert('No se pudo eliminar. Verificá el servidor.');
   }
 }
 
@@ -1105,20 +1209,18 @@ function loadMessagesView() {
   const view = document.getElementById('view-messages');
   if (!view) return;
 
-  // Evitar recargar si ya tiene el iframe
-  if (view.querySelector('iframe')) return;
+  // Si ya tiene iframe Y el token sigue siendo el mismo → no recargar
+  const existing = view.querySelector('iframe');
+  const currentToken = localStorage.getItem('inmo_token') || '';
+  if (existing && existing.dataset.token === currentToken) return;
 
+  // Crear (o recrear) el iframe con el token actual embebido como referencia
   view.innerHTML = `
     <iframe
       src="mensajes.html"
+      data-token="${currentToken}"
       title="Centro de mensajes"
-      style="
-        width: 100%;
-        flex: 1;
-        border: none;
-        border-radius: 0;
-        min-height: 0;
-      "
+      style="width:100%;flex:1;border:none;min-height:0;"
       allowfullscreen
     ></iframe>`;
 }
