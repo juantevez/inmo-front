@@ -1040,3 +1040,408 @@ async function uploadOnePhoto(file, propertyID, token, msgEl) {
     placeholder.remove();
   }
 }
+
+/* ══════════════════════════════════════════════════
+   INMO MAP MODULE — map.js
+   Agregar <script src="map.js"></script> en index.html
+   DESPUÉS de index.js
+   ══════════════════════════════════════════════════ */
+
+'use strict';
+
+/* ── Estado del mapa ── */
+const MapState = {
+  map:          null,
+  markers:      [],       // { marker, propId, divIcon }
+  radiusCircle: null,
+  userMarker:   null,
+  activePopup:  null,
+  geoLat:       null,
+  geoLon:       null,
+  radiusKm:     5,
+  initialized:  false,
+};
+
+/* ── Inicializar Leaflet ── */
+function initMap() {
+  if (MapState.initialized) return;
+  MapState.initialized = true;
+
+  // Centro default: Buenos Aires
+  MapState.map = L.map('map', {
+    center: [-34.6037, -58.3816],
+    zoom: 12,
+    zoomControl: true,
+    scrollWheelZoom: true,
+  });
+
+  // Tile OpenStreetMap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(MapState.map);
+
+  // Mover el control de zoom a la derecha
+  MapState.map.zoomControl.setPosition('bottomright');
+
+  // Click en el mapa → limpiar búsqueda geo
+  MapState.map.on('click', () => {
+    // Solo si no hay geo activo (evitar conflicto con popup)
+  });
+}
+
+/* ── Crear marcador con precio como label ── */
+function createMarkerIcon(price, currency, isActive) {
+  const symbol = currency === 'USD' ? 'U$S' : '$';
+  const formatted = Number(price).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  const label = `${symbol} ${formatted}`;
+
+  return L.divIcon({
+    className: '',
+    html: `<div class="map-marker ${isActive ? 'active' : ''}">${label}</div>`,
+    iconSize:   null,
+    iconAnchor: [0, 0],
+    popupAnchor: [0, -10],
+  });
+}
+
+/* ── Construir HTML del popup ── */
+function buildPopupHTML(p) {
+  const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
+  const price    = Number(rawPrice || 0).toLocaleString('es-AR');
+  const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+  const opLabel  = { SALE: 'Venta', RENT: 'Alquiler', TEMP: 'Temporario' };
+  const op       = p.operation_type || 'SALE';
+  const address  = escHtml(p.address || p.location?.address || '');
+  const symbol   = currency === 'USD' ? 'U$S' : '$';
+
+  // Serializar la propiedad para el onclick — escapado para HTML attribute
+  const pJson = JSON.stringify(p).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  return `
+    <div class="map-popup">
+      <div class="map-popup-img" id="popup-img-${escHtml(p.id)}">
+        <svg class="map-popup-img-placeholder" width="36" height="36" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <div class="map-popup-body">
+        <span class="map-popup-op ${op}">${opLabel[op] || op}</span>
+        <div class="map-popup-title">${escHtml(p.title || 'Sin título')}</div>
+        <div class="map-popup-addr">${address}</div>
+        <div class="map-popup-footer">
+          <span class="map-popup-price">
+            ${symbol} ${price}<span class="map-popup-currency">${currency}</span>
+          </span>
+          <button class="map-popup-btn" onclick="openDetail(${pJson})">Ver más</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ── Cargar imagen del popup después de abrirlo ── */
+async function loadPopupImage(propertyId) {
+  try {
+    const res   = await fetch(`${API_CATALOG}/api/v1/properties/${propertyId}/media`);
+    if (!res.ok) return;
+    const items = await res.json();
+    const first  = Array.isArray(items) ? items.find(m => m.type === 'IMAGE') : null;
+    if (!first?.url) return;
+
+    const container = document.getElementById(`popup-img-${propertyId}`);
+    if (!container) return;
+    container.innerHTML = `<img src="${escHtml(first.url)}" alt="" loading="lazy"
+      style="width:100%;height:100%;object-fit:cover;display:block" />`;
+  } catch (_) { /* silencioso */ }
+}
+
+/* ── Renderizar markers a partir de la lista de propiedades ── */
+function renderMarkers(props) {
+  if (!MapState.map) return;
+
+  // Limpiar markers anteriores
+  MapState.markers.forEach(({ marker }) => MapState.map.removeLayer(marker));
+  MapState.markers = [];
+
+  if (!props.length) return;
+
+  const bounds = [];
+
+  props.forEach(p => {
+    const lat = p.location?.latitude  ?? p.latitude;
+    const lng = p.location?.longitude ?? p.longitude;
+    if (!lat || !lng) return;
+
+    const rawPrice = typeof p.price === 'object' ? p.price?.amount : p.price;
+    const currency = (typeof p.price === 'object' ? p.price?.currency : p.currency) || 'ARS';
+
+    const icon   = createMarkerIcon(rawPrice, currency, false);
+    const marker = L.marker([lat, lng], { icon, riseOnHover: true });
+
+    const popupContent = buildPopupHTML(p);
+    const popup = L.popup({ closeButton: true, maxWidth: 220, minWidth: 220 })
+      .setContent(popupContent);
+
+    marker.bindPopup(popup);
+
+    // Al abrir el popup → marcar como activo y cargar imagen
+    marker.on('popupopen', () => {
+      setMarkerActive(p.id, true);
+      loadPopupImage(p.id);
+      highlightCard(p.id);
+    });
+
+    marker.on('popupclose', () => {
+      setMarkerActive(p.id, false);
+      unhighlightCard(p.id);
+    });
+
+    marker.addTo(MapState.map);
+    MapState.markers.push({ marker, propId: p.id, lat, lng });
+    bounds.push([lat, lng]);
+  });
+
+  // Ajustar vista al conjunto de markers (si no hay búsqueda geo activa)
+  if (bounds.length > 0 && !MapState.geoLat) {
+    try {
+      MapState.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    } catch (_) {}
+  }
+}
+
+/* ── Activar/desactivar marker visualmente ── */
+function setMarkerActive(propId, active) {
+  MapState.markers.forEach(m => {
+    if (m.propId === propId) {
+      const rawPrice = m.marker.options.icon.options.html;
+      // Re-crear el icon con la clase activa
+      const el = m.marker.getElement();
+      if (el) {
+        const div = el.querySelector('.map-marker');
+        if (div) {
+          if (active) div.classList.add('active');
+          else        div.classList.remove('active');
+        }
+      }
+    }
+  });
+}
+
+/* ── Resaltar card en la lista cuando se abre un popup ── */
+function highlightCard(propId) {
+  document.querySelectorAll('.prop-card').forEach(c => {
+    const onclick = c.getAttribute('onclick') || '';
+    if (onclick.includes(propId)) {
+      c.style.outline = '2px solid var(--gold)';
+      c.style.outlineOffset = '2px';
+      c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+}
+
+function unhighlightCard(propId) {
+  document.querySelectorAll('.prop-card').forEach(c => {
+    c.style.outline = '';
+    c.style.outlineOffset = '';
+  });
+}
+
+/* ── Abrir popup de un marker desde la card (hover) ── */
+function openMarkerPopup(propId) {
+  const found = MapState.markers.find(m => m.propId === propId);
+  if (found) {
+    found.marker.openPopup();
+    MapState.map.panTo([found.lat, found.lng], { animate: true, duration: 0.3 });
+  }
+}
+
+/* ── Círculo de radio geo ── */
+function drawRadiusCircle(lat, lng, radiusKm) {
+  if (MapState.radiusCircle) {
+    MapState.map.removeLayer(MapState.radiusCircle);
+  }
+  MapState.radiusCircle = L.circle([lat, lng], {
+    radius:    radiusKm * 1000,
+    className: 'map-radius-circle',
+  }).addTo(MapState.map);
+}
+
+function clearRadiusCircle() {
+  if (MapState.radiusCircle) {
+    MapState.map.removeLayer(MapState.radiusCircle);
+    MapState.radiusCircle = null;
+  }
+}
+
+/* ── Marker de posición del usuario ── */
+function setUserMarker(lat, lng) {
+  if (MapState.userMarker) {
+    MapState.map.removeLayer(MapState.userMarker);
+  }
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;
+      background:var(--gold);
+      border:3px solid var(--white);
+      border-radius:50%;
+      box-shadow:0 0 0 3px rgba(201,169,110,0.3),var(--shadow-sm);
+    "></div>`,
+    iconSize:   [14, 14],
+    iconAnchor: [7, 7],
+  });
+  MapState.userMarker = L.marker([lat, lng], { icon, zIndexOffset: 500 })
+    .addTo(MapState.map)
+    .bindTooltip('Tu ubicación', { direction: 'top', offset: [0, -10] });
+}
+
+/* ── Geo: buscar por mi ubicación ── */
+async function geoLocateMe() {
+  const btn = document.getElementById('btn-geo-locate');
+  if (!navigator.geolocation) {
+    alert('Tu navegador no soporta geolocalización.');
+    return;
+  }
+
+  btn.classList.add('locating');
+  btn.querySelector('.geo-locate-text').textContent = 'Localizando...';
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      applyGeoFilter(lat, lng, MapState.radiusKm);
+      btn.classList.remove('locating');
+      btn.querySelector('.geo-locate-text').textContent = 'Mi ubicación';
+    },
+    err => {
+      console.error('[geo]', err);
+      alert('No se pudo obtener tu ubicación. Verificá los permisos del navegador.');
+      btn.classList.remove('locating');
+      btn.querySelector('.geo-locate-text').textContent = 'Mi ubicación';
+    },
+    { timeout: 8000 }
+  );
+}
+
+/* ── Aplicar filtro geo ── */
+function applyGeoFilter(lat, lng, radiusKm) {
+  MapState.geoLat   = lat;
+  MapState.geoLon   = lng;
+  MapState.radiusKm = radiusKm;
+
+  // Mover mapa al punto
+  MapState.map.setView([lat, lng], 13, { animate: true });
+
+  // Dibujar círculo y marker de usuario
+  setUserMarker(lat, lng);
+  drawRadiusCircle(lat, lng, radiusKm);
+
+  // Mostrar badge
+  showGeoBadge(radiusKm);
+
+  // Disparar búsqueda con coords
+  doSearch();
+}
+
+/* ── Limpiar filtro geo ── */
+function clearGeoFilter() {
+  MapState.geoLat = null;
+  MapState.geoLon = null;
+
+  clearRadiusCircle();
+  if (MapState.userMarker) {
+    MapState.map.removeLayer(MapState.userMarker);
+    MapState.userMarker = null;
+  }
+
+  hideGeoBadge();
+  doSearch();
+}
+
+/* ── Badge geo ── */
+function showGeoBadge(radiusKm) {
+  const badge = document.getElementById('geo-badge');
+  if (badge) {
+    badge.style.display = 'inline-flex';
+    badge.querySelector('.geo-badge-label').textContent = `Radio ${radiusKm} km`;
+  }
+}
+
+function hideGeoBadge() {
+  const badge = document.getElementById('geo-badge');
+  if (badge) badge.style.display = 'none';
+}
+
+/* ── Toggle mobile: lista / mapa ── */
+function showListView() {
+  document.getElementById('map-panel').classList.remove('mobile-visible');
+  document.getElementById('btn-toggle-list').classList.add('active');
+  document.getElementById('btn-toggle-map').classList.remove('active');
+}
+
+function showMapView() {
+  document.getElementById('map-panel').classList.add('mobile-visible');
+  document.getElementById('btn-toggle-map').classList.add('active');
+  document.getElementById('btn-toggle-list').classList.remove('active');
+  // Invalidar tamaño del mapa al mostrarlo en mobile
+  if (MapState.map) {
+    setTimeout(() => MapState.map.invalidateSize(), 50);
+  }
+}
+
+/* ── Hook: interceptar renderProperties para sincronizar mapa ── */
+const _originalRenderProperties = window.renderProperties;
+window.renderProperties = function(props) {
+  // Llamar al render original de las cards
+  _originalRenderProperties(props);
+
+  // Sincronizar markers en el mapa
+  renderMarkers(props);
+
+  // Agregar hover en cards para iluminar marker
+  props.forEach(p => {
+    // Pequeño delay para que el DOM exista
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.prop-card').forEach(card => {
+        const onclick = card.getAttribute('onclick') || '';
+        if (onclick.includes(p.id)) {
+          card.addEventListener('mouseenter', () => openMarkerPopup(p.id));
+        }
+      });
+    });
+  });
+};
+
+/* ── Hook: interceptar loadProperties para pasar params geo ── */
+const _originalLoadProperties = window.loadProperties;
+window.loadProperties = async function() {
+  // Si hay geo activo, inyectar params en la URL antes de fetchear
+  // Lo hacemos sobreescribiendo los valores en el scope de index.js
+  // a través de la función doSearch que ya existe
+
+  // Llamar al original — que ahora leerá GeoState vía getGeoParams()
+  await _originalLoadProperties();
+};
+
+/* ── Exportar params geo para que index.js los use ── */
+window.getGeoParams = function() {
+  if (MapState.geoLat && MapState.geoLon) {
+    return {
+      lat:       MapState.geoLat,
+      lon:       MapState.geoLon,
+      radius_km: MapState.radiusKm,
+    };
+  }
+  return null;
+};
+
+/* ── Init al cargar ── */
+document.addEventListener('DOMContentLoaded', () => {
+  initMap();
+  // Invalidar tamaño tras primer render (por si el panel estaba oculto)
+  setTimeout(() => {
+    if (MapState.map) MapState.map.invalidateSize();
+  }, 200);
+});
